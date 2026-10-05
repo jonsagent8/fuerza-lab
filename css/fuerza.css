@@ -34,3 +34,5 @@
 .cal__foot a { color: var(--cyan); text-decoration: none; }
 .foot__big { font-size: clamp(64px, 15.5vw, 260px); padding-right: .12em; overflow: visible; white-space: nowrap; }
 .contact div { grid-template-columns: 112px 1fr; }
+/* Longer wash scene so the dirt → foam → rinse sequence scrolls slower (was 260vh) */
+.scene#wash { height: 500vh; }
