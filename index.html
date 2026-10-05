@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fuerza Auto Care — Detailing, Tint, Wrap &amp; PPF</title>
+<meta name="description" content="Fuerza Auto Care: one owner, one set of hands on every car. Showroom-grade detailing, window tint, color-change wraps and paint protection film, booked online.">
+<meta name="theme-color" content="#070708">
+<meta property="og:title" content="Fuerza Auto Care">
+<meta property="og:description" content="Detailing, window tint, vinyl wraps and PPF. Clean is a standard. Shine is fuerza.">
+<meta property="og:image" content="assets/logo.jpg">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..900;1,100..125,400..900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/fuerza.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+</head>
+<body>
+
+<!-- preloader: a squeegee wipe reveals the page -->
+<div class="loader" id="loader" aria-hidden="true">
+  <div class="loader__inner">
+    <div class="loader__mark">FUERZA</div>
+    <div class="loader__bar"><span id="loaderBar"></span></div>
+    <div class="loader__meta mono"><span id="loaderTxt">PRE-RINSE</span><span id="loaderPct">000</span></div>
+  </div>
+</div>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<canvas id="bubbles" aria-hidden="true"></canvas>
+<div class="cursor" id="cursor" aria-hidden="true"><span class="cursor__ring"></span><span class="cursor__dot"></span><span class="cursor__label" id="cursorLabel"></span></div>
+<div class="progress" aria-hidden="true"><span id="progress"></span></div>
+
+<header class="nav" id="nav">
+  <a class="nav__logo" href="#top" aria-label="Fuerza Auto Care home"><img class="nav__badge" src="assets/logo.jpg" alt="" width="44" height="35">FUERZA<span class="nav__logo-sub">AUTO CARE</span></a>
+  <nav class="nav__links" id="navLinks" aria-label="Main">
+    <a href="#wash">Wash</a><a href="#interior">Interior</a><a href="#tint">Tint</a><a href="#wrap">Wrap</a><a href="#ppf">PPF</a><a href="#pricing">Pricing</a><a href="#about">About</a>
+  </nav>
+  <a class="btn btn--film magnetic" href="#book" data-cursor="Book"><span>Book now</span></a>
+  <button class="nav__menu" id="navMenu" aria-label="Open menu" aria-expanded="false"><span></span><span></span></button>
+</header>
+
+<!-- HUD readouts that follow the 3D showcase -->
+<aside class="hud mono" id="hud" aria-hidden="true">
+  <div class="hud__row"><span class="hud__k">SCENE</span><span class="hud__v" id="hudScene">00 / ARRIVAL</span></div>
+  <div class="hud__row"><span class="hud__k">STATUS</span><span class="hud__v" id="hudStatus">SHOWROOM READY</span></div>
+  <div class="hud__row"><span class="hud__k">READOUT</span><span class="hud__v" id="hudRead">GLOSS 98 GU</span></div>
+</aside>
+<nav class="dots" id="dots" aria-label="Showcase scenes">
+  <a href="#top" data-i="0"><span>Arrival</span></a><a href="#wash" data-i="1"><span>Hand wash</span></a><a href="#interior" data-i="2"><span>Interior</span></a><a href="#tint" data-i="3"><span>Tint</span></a><a href="#wrap" data-i="4"><span>Wrap</span></a><a href="#ppf" data-i="5"><span>PPF</span></a>
+</nav>
+
+<main id="top">
+  <!-- ============ SHOWCASE (3D car stays fixed behind these) ============ -->
+  <section class="scene hero" data-scene="0">
+    <div class="hero__inner">
+      <p class="eyebrow mono" data-scramble>CLEAN IS A STANDARD.</p>
+      <h1 class="hero__title"><span class="line" data-split>Shine is</span><span class="line film-text" data-split>fuerza.</span></h1>
+      <p class="hero__sub">One owner. One set of hands on every car. Showroom-grade detailing, precision window tint, color-change wraps and paint protection film, booked online in a minute.</p>
+      <div class="hero__cta">
+        <a class="btn btn--film btn--lg magnetic" href="#book" data-cursor="Book"><span>Book an appointment</span></a>
+        <a class="btn btn--ghost btn--lg magnetic" href="#services" data-cursor="Explore"><span>See every service</span></a>
+      </div>
+    </div>
+    <div class="hero__foot mono">
+      <span class="hint"><i class="hint__dot"></i>Move your cursor across the paint</span>
+      <span class="scrollcue">Scroll to start the wash<i></i></span>
+    </div>
+  </section>
+
+  <section class="scene" id="wash" data-scene="1">
+    <div class="scene__sticky">
+      <div class="panel panel--left">
+        <p class="eyebrow mono">01 · HAND WASH</p>
+        <h2 class="panel__title" data-split>No brushes. No shortcuts.</h2>
+        <ol class="steps">
+          <li data-at="0.12"><span class="steps__n mono">A</span><div><b>Snow foam pre-soak</b><p>pH-neutral foam clings to every panel and lifts the grit before a mitt ever touches the paint.</p></div></li>
+          <li data-at="0.4"><span class="steps__n mono">B</span><div><b>Two-bucket hand wash</b><p>Grit guards in both buckets and a clean microfiber mitt for every section of the car.</p></div></li>
+          <li data-at="0.62"><span class="steps__n mono">C</span><div><b>Spot-free rinse and dry</b><p>A filtered final rinse, then a touchless air dry, so nothing drags across the clear coat.</p></div></li>
+        </ol>
+        <div class="readouts mono"><div><b data-count="7.0" data-dec="1">7.0</b><span>pH foam</span></div><div><b data-count="2">2</b><span>buckets</span></div><div><b data-count="0">0</b><span>machine brushes</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="interior" data-scene="2">
+    <div class="scene__sticky">
+      <div class="panel panel--right">
+        <p class="eyebrow mono">02 · INTERIOR</p>
+        <h2 class="panel__title" data-split>Inside, down to the stitching.</h2>
+        <ul class="ticks">
+          <li>Hot-water extraction for carpets, mats and cloth seats</li>
+          <li>Steam for vents, seams, cupholders and door pockets</li>
+          <li>pH-balanced leather cleaner, then a matte conditioner</li>
+          <li>Streak-free glass, inside and out</li>
+        </ul>
+        <p class="note mono">Watch the cabin. Steam passes through it as you scroll.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="tint" data-scene="3">
+    <div class="scene__sticky">
+      <div class="panel panel--left">
+        <p class="eyebrow mono">03 · WINDOW TINT</p>
+        <h2 class="panel__title" data-split>Pick your shade.</h2>
+        <p>Computer-cut ceramic film that rejects heat and blocks 99% of UV without killing your phone, GPS or radio signal. Clean edges, no bubbles.</p>
+        <div class="vlt">
+          <div class="vlt__readout"><span class="mono">VLT</span><b id="vltNum">70</b><span class="vlt__pct">%</span></div>
+          <div class="vlt__chips" role="group" aria-label="Tint shade">
+            <button class="chip" data-vlt="70">70%</button><button class="chip" data-vlt="50">50%</button><button class="chip" data-vlt="35">35%</button><button class="chip" data-vlt="20">20%</button><button class="chip" data-vlt="5">5%</button>
+          </div>
+          <p class="note mono">VLT is the share of visible light the film lets through. Lower is darker. Legal limits vary by state, and I'll tell you yours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="wrap" data-scene="4">
+    <div class="scene__sticky">
+      <div class="panel panel--right">
+        <p class="eyebrow mono">04 · VINYL WRAP</p>
+        <h2 class="panel__title" data-split>Any color. Fully reversible.</h2>
+        <p>Full or partial color change, chrome delete and accents in premium cast vinyl. It protects the factory paint underneath and peels off cleanly when you want something new.</p>
+        <div class="swatches" role="group" aria-label="Wrap color">
+          <button class="swatch" data-c="#b0121a" data-f="gloss" style="--c:#b0121a"><i></i><span>Fuerza Red</span></button>
+          <button class="swatch" data-c="#3a3f47" data-f="satin" style="--c:#3a3f47"><i></i><span>Satin Graphite</span></button>
+          <button class="swatch" data-c="#e6ebf0" data-f="pearl" style="--c:#e6ebf0"><i></i><span>Glacier Pearl</span></button>
+          <button class="swatch" data-c="#c9ced6" data-f="chrome" style="--c:#c9ced6"><i></i><span>Chrome Silver</span></button>
+          <button class="swatch" data-c="#16181c" data-f="matte" style="--c:#16181c"><i></i><span>Matte Black</span></button>
+          <button class="swatch" data-c="#1e4fd0" data-f="gloss" style="--c:#1e4fd0"><i></i><span>Portimao Blue</span></button>
+        </div>
+        <p class="note mono" id="wrapNow">FINISH · GLOSS — click any swatch to rewrap the car</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="scene" id="ppf" data-scene="5">
+    <div class="scene__sticky">
+      <div class="panel panel--left">
+        <p class="eyebrow mono">05 · PAINT PROTECTION FILM</p>
+        <h2 class="panel__title" data-split>Armor you can't see.</h2>
+        <p>Clear, self-healing urethane that stops rock chips, road rash and light scratches before they reach the paint. Front-end, track pack or full-body coverage.</p>
+        <div class="readouts mono"><div><b data-count="8">8</b><span>mil thick</span></div><div><b data-count="10">10</b><span>yr film warranty</span></div><div><b data-count="99" data-suffix="%">99%</b><span>optical clarity</span></div></div>
+        <p class="note mono">Those are rock chips hitting the nose. Every hit lands on film, not paint.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SOLID SECTIONS (cover the 3D canvas) ============ -->
+  <div class="solid">
+    <section class="marquee" aria-hidden="true">
+      <div class="marquee__track"><span>Ceramic coating</span><i></i><span>Paint correction</span><i></i><span>Ceramic window tint</span><i></i><span>Color-change wraps</span><i></i><span>Self-healing PPF</span><i></i><span>Interior restoration</span><i></i><span>Ceramic coating</span><i></i><span>Paint correction</span><i></i><span>Ceramic window tint</span><i></i><span>Color-change wraps</span><i></i><span>Self-healing PPF</span><i></i><span>Interior restoration</span><i></i></div>
+    </section>
+
+    <section class="block correction" id="correction">
+      <div class="block__head">
+        <p class="eyebrow mono">PAINT CORRECTION</p>
+        <h2 class="block__title" data-split>Swirls, gone.</h2>
+        <p class="block__lede">Swirl marks are thousands of fine circular scratches that show up under any bright light. Machine polishing levels them out by removing only a few microns of clear coat.</p>
+      </div>
+      <div class="compare" id="compare" data-cursor="Drag">
+        <canvas id="compareCanvas"></canvas>
+        <div class="compare__handle" id="compareHandle"><span></span></div>
+        <span class="compare__tag compare__tag--l mono">BEFORE · SWIRLED</span>
+        <span class="compare__tag compare__tag--r mono">AFTER · CORRECTED</span>
+      </div>
+      <div class="compare__legend mono"><span>Drag the divider. Move your cursor to move the light.</span><span>≈ 3 µm removed from ≈ 40 µm of clear coat</span></div>
+    </section>
+
+    <section class="block services" id="services">
+      <div class="block__head">
+        <p class="eyebrow mono">WHAT I DO</p>
+        <h2 class="block__title" data-split>Four disciplines. One standard.</h2>
+      </div>
+      <div class="cards">
+        <article class="card tilt" data-cursor="View">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 30c4-10 10-14 18-14s14 4 18 14M10 30h28v6H10z"/><circle cx="16" cy="36" r="3"/><circle cx="32" cy="36" r="3"/><path d="M14 10c1 2 1 3 0 5M24 6c1 2 1 3 0 5M34 10c1 2 1 3 0 5"/></svg>
+          <h3>Detailing</h3><p>Hand wash, decontamination, machine polish and an interior deep clean. Est. 2–4 hours.</p><span class="card__from mono">from $149</span>
+        </article>
+        <article class="card tilt" data-cursor="View">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6l15 6v11c0 9-6 16-15 19C15 39 9 32 9 23V12z"/><path d="M17 24l5 5 9-10"/></svg>
+          <h3>Ceramic coating</h3><p>Add it to any detail for years of deep gloss, water beading and easy upkeep.</p><span class="card__from mono">quoted per car</span>
+        </article>
+        <article class="card tilt" data-cursor="View">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 40V20a6 6 0 016-6h4a6 6 0 016 6v6H20"/><path d="M14 40h20M30 26l6 14"/><path d="M33 8c1 2 1 3 0 5M38 10c1 2 1 3 0 5"/></svg>
+          <h3>Interior restoration</h3><p>Extraction, steam, leather care, vents and every crevice. Odors removed, not masked.</p><span class="card__from mono">with any detail</span>
+        </article>
+        <article class="card tilt" data-cursor="View">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 34L16 12h20l4 22z"/><path d="M16 12l-2 22M22 12l-2 22M28 12l-2 22M34 12l-2 22" opacity=".5"/></svg>
+          <h3>Window tint</h3><p>Computer-cut ceramic film, from 5% to 70%. Clean edges, no bubbles. Est. 2–3 hours.</p><span class="card__from mono">from $249</span>
+        </article>
+        <article class="card tilt" data-cursor="View">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 32c4-9 10-13 18-13s14 4 18 13H6z"/><path d="M6 32c10-8 26-8 36 0" opacity=".5"/><path d="M30 10l8 8M34 8l6 6"/></svg>
+          <h3>Vinyl wrap</h3><p>Full or partial color change, chrome delete and accents. Fully reversible. Est. 3–5 days.</p><span class="card__from mono">from $2,800</span>
+        </article>
+        <article class="card tilt" data-cursor="View">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6l15 6v11c0 9-6 16-15 19C15 39 9 32 9 23V12z"/><path d="M24 15l4 2.5v5L24 25l-4-2.5v-5z"/></svg>
+          <h3>Paint protection film</h3><p>Self-healing urethane on the front end, track pack or the whole car. Est. 1–3 days.</p><span class="card__from mono">from $1,200</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="block heal" id="heal">
+      <div class="heal__copy">
+        <p class="eyebrow mono">SELF-HEALING FILM</p>
+        <h2 class="block__title" data-split>Go ahead. Scratch it.</h2>
+        <p class="block__lede">The PPF top coat is an elastomer. Light scratches flow back together when the film warms up, from sunlight, a warm engine or a cup of hot water.</p>
+        <p class="note mono">Drag across the panel to scratch it, then watch it heal.</p>
+      </div>
+      <div class="heal__pad" id="healPad" data-cursor="Scratch"><canvas id="healCanvas"></canvas><span class="heal__temp mono" id="healTemp">FILM 22 °C</span></div>
+    </section>
+
+    <section class="block packages" id="pricing">
+      <div class="block__head">
+        <p class="eyebrow mono">PRICING</p>
+        <h2 class="block__title" data-split>Pick a service. Pick a time.</h2>
+        <p class="block__lede">Starting prices for a sedan. SUVs, trucks and heavy correction are quoted after I see the car, and you get the price before I start.</p>
+      </div>
+      <div class="tiers tiers--4">
+        <article class="tier tier--hot tilt">
+          <p class="tier__flag mono">MOST BOOKED</p>
+          <p class="tier__name mono">DETAILING</p><p class="tier__price"><span class="tier__pre">from</span><span>$</span>149</p><p class="tier__desc">Inside and out. The car comes back better than new.</p>
+          <ul><li>Foam + two-bucket hand wash</li><li>Clay + iron decontamination</li><li>Machine polish</li><li>Interior deep clean</li><li>Est. 2–4 hours</li></ul>
+          <a class="btn btn--film magnetic" href="#book" data-pkg="detailing"><span>Book detailing</span></a>
+        </article>
+        <article class="tier tilt">
+          <p class="tier__name mono">WINDOW TINT</p><p class="tier__price"><span class="tier__pre">from</span><span>$</span>249</p><p class="tier__desc">Cooler cabin, more privacy, 99% UV blocked.</p>
+          <ul><li>Ceramic film</li><li>Computer-cut patterns</li><li>5% to 70% VLT</li><li>Est. 2–3 hours</li></ul>
+          <a class="btn btn--ghost magnetic" href="#book" data-pkg="window-tint"><span>Book tint</span></a>
+        </article>
+        <article class="tier tilt">
+          <p class="tier__name mono">VINYL WRAP</p><p class="tier__price"><span class="tier__pre">from</span><span>$</span>2,800</p><p class="tier__desc">A new color that protects the paint underneath.</p>
+          <ul><li>Premium cast vinyl</li><li>Gloss, satin, matte, chrome</li><li>Chrome delete + accents</li><li>Est. 3–5 days</li></ul>
+          <a class="btn btn--ghost magnetic" href="#book" data-pkg="vinyl-wrap"><span>Book a drop-off</span></a>
+        </article>
+        <article class="tier tilt">
+          <p class="tier__name mono">PPF</p><p class="tier__price"><span class="tier__pre">from</span><span>$</span>1,200</p><p class="tier__desc">Stops rock chips before they reach the paint.</p>
+          <ul><li>Self-healing urethane</li><li>Front-end or full body</li><li>Optically clear</li><li>Est. 1–3 days</li></ul>
+          <a class="btn btn--ghost magnetic" href="#book" data-pkg="ppf"><span>Book a drop-off</span></a>
+        </article>
+      </div>
+    </section>
+
+    <section class="block about" id="about">
+      <div class="about__badge tilt"><img src="assets/logo.jpg" alt="Fuerza Auto Care logo: a red car being foam-washed above the Fuerza Auto Care lettering" width="900" height="716" loading="lazy"></div>
+      <div class="about__copy">
+        <p class="eyebrow mono">ABOUT</p>
+        <h2 class="block__title" data-split>No crew. No shortcuts.</h2>
+        <p class="block__lede">Fuerza Auto Care is me: one person, one bay and an unreasonable obsession with paint. I started out detailing friends' cars on weekends and turned it into a full-time craft.</p>
+        <p>Because I work solo, the person you book with is the person who works on your car. Every vehicle gets an inspection under color-matched light, a clear plan before I start, and a walk-around when I hand back the keys.</p>
+      </div>
+    </section>
+
+    <section class="block process" id="process">
+      <div class="block__head">
+        <p class="eyebrow mono">HOW IT WORKS</p>
+        <h2 class="block__title" data-split>Three steps to the reveal.</h2>
+      </div>
+      <ol class="flow">
+        <li><span class="flow__n">01</span><h3>Book online</h3><p>Pick your service and a time that fits. Each calendar only shows slots long enough for the job.</p></li>
+        <li><span class="flow__n">02</span><h3>Inspection</h3><p>We walk the car together under the lights and agree on the plan and the price before I start.</p></li>
+        <li><span class="flow__n">03</span><h3>The reveal</h3><p>Pick up a finished car, with care tips and photos of the work.</p></li>
+      </ol>
+    </section>
+
+    <section class="block book" id="book">
+      <div class="book__copy">
+        <p class="eyebrow mono">BOOKING</p>
+        <h2 class="block__title" data-split>Let's get it clean.</h2>
+        <p class="block__lede">Each service has its own calendar with the right slot length, so you only see times that actually fit. Questions first? Text me.</p>
+        <dl class="contact mono">
+          <div><dt>TEXT / CALL</dt><dd>(555) 555-0123</dd></div>
+          <div><dt>EMAIL</dt><dd>hello@fuerzaautocare.com</dd></div>
+          <div><dt>AREA</dt><dd>Shop &amp; mobile · Your City</dd></div>
+          <div><dt>HOURS</dt><dd>By appointment · Mon–Sat</dd></div>
+        </dl>
+      </div>
+      <div class="cal">
+        <div class="cal__tabs" role="tablist" aria-label="Service">
+          <button class="chip" role="tab" data-tab="detailing">Detailing</button><button class="chip" role="tab" data-tab="window-tint">Window Tint</button><button class="chip" role="tab" data-tab="vinyl-wrap">Vinyl Wrap</button><button class="chip" role="tab" data-tab="ppf">PPF</button>
+        </div>
+        <div class="cal__frame" data-lenis-prevent>
+          <div id="calEmbed" class="cal__embed"></div>
+          <div class="cal__placeholder" id="calPlaceholder">
+            <p class="eyebrow mono">CAL.COM</p>
+            <p class="cal__ph-title">Your booking calendar goes here</p>
+            <p>Set your Cal.com username in <code>js/main.js</code> (<code>CAL_CONFIG</code>) and this panel becomes the live calendar for the selected service.</p>
+          </div>
+        </div>
+        <div class="cal__foot mono"><span>SELECTED · <b id="calSelected">Detailing · 240 min</b></span><a id="calLink" href="#book" target="_blank" rel="noopener">Open on Cal.com ↗</a></div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <div class="foot__big" aria-hidden="true">FUERZA</div>
+      <div class="foot__row mono"><span>© <span id="yr">2026</span> Fuerza Auto Care LLC</span><span><a href="#" class="magnetic">Instagram</a> · <a href="#" class="magnetic">TikTok</a> · <a href="#" class="magnetic">Reviews</a></span><a href="#top" class="magnetic">Back to top ↑</a></div>
+      <p class="foot__credit mono">3D car: <a href="https://sketchfab.com/3d-models/2022-bmw-m240i-coupe-822a4e2d8a0e4568beda00539f4ad341" target="_blank" rel="noopener">“2022 BMW M240i Coupe”</a> by Nazh Design, licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Recolored and modified.</p>
+    </footer>
+  </div>
+</main>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

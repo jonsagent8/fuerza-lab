@@ -1,0 +1,36 @@
+/* Fuerza Auto Care additions on top of the shared engine styles */
+.nav__badge { width: 44px; height: 35px; object-fit: cover; border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
+.loader__mark { font-style: italic; font-stretch: 125%; }
+.hero__title { font-style: italic; font-stretch: 125%; letter-spacing: -.02em; }
+.foot__big { font-style: italic; font-stretch: 125%; }
+
+/* four pricing tiers */
+.tiers--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tiers--4 .tier { padding: 28px; }
+@media (max-width: 1100px) { .tiers--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tiers--4 .tier--hot { grid-column: auto; order: 0; } }
+@media (max-width: 640px) { .tiers--4 { grid-template-columns: minmax(0, 1fr); } }
+
+/* about */
+.about { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(32px, 6vw, 90px); align-items: center; }
+.about__badge { border-radius: 26px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 30px 80px -30px rgba(225,29,37,.45); }
+.about__badge img { display: block; width: 100%; height: auto; }
+.about__copy { display: grid; gap: 22px; }
+.about__copy > p:last-child { color: var(--muted); max-width: 56ch; }
+@media (max-width: 900px) { .about { grid-template-columns: minmax(0, 1fr); } }
+
+/* Cal.com booking */
+.cal { display: grid; gap: 16px; padding: clamp(18px, 2.4vw, 30px); border-radius: 26px; background: var(--ink-2); border: 1px solid var(--line); min-width: 0; }
+.cal__tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.cal__frame { position: relative; min-height: 460px; border-radius: 18px; overflow: auto; background: var(--ink); border: 1px solid var(--line); }
+.cal__embed { width: 100%; min-height: 460px; }
+.cal__placeholder { position: absolute; inset: 0; display: grid; align-content: center; justify-items: start; gap: 12px; padding: clamp(22px, 4vw, 48px);
+  background: radial-gradient(500px circle at 80% 20%, rgba(225,29,37,.16), transparent 60%), repeating-linear-gradient(90deg, transparent 0 63px, rgba(255,255,255,.035) 63px 64px), var(--ink); }
+.cal__placeholder[hidden] { display: none; }
+.cal__ph-title { font: 700 italic clamp(22px, 2.4vw, 32px)/1.1 var(--f-display); font-stretch: 125%; }
+.cal__placeholder p:last-child { color: var(--muted); max-width: 44ch; }
+.cal__placeholder code { font-family: var(--f-mono); font-size: .9em; color: var(--fg); }
+.cal__foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); letter-spacing: .1em; }
+.cal__foot b { color: var(--fg); font-weight: 500; }
+.cal__foot a { color: var(--cyan); text-decoration: none; }
+.foot__big { font-size: clamp(64px, 15.5vw, 260px); padding-right: .12em; overflow: visible; white-space: nowrap; }
+.contact div { grid-template-columns: 112px 1fr; }
