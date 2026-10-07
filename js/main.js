@@ -72,7 +72,7 @@ function measure() {
 }
 // on touch devices the URL bar showing/hiding fires height-only resizes mid-scroll; re-measuring then makes the page jump
 let lastW = innerWidth;
-measure(); window.addEventListener('resize', () => { if (mobile && innerWidth === lastW) return; lastW = innerWidth; measure(); ScrollTrigger.refresh(); }); window.addEventListener('load', measure);
+measure(); window.addEventListener('resize', () => { measure(); if (mobile && innerWidth === lastW) return; lastW = innerWidth; ScrollTrigger.refresh(); }); window.addEventListener('load', measure);
 
 // camera keyframes per scene: yaw around the car, distance, height, look-at height, sideways offset (car away from the panel)
 const K = [
@@ -107,7 +107,10 @@ function applyWrap(i) {
 const raw = i => offs[i] ? (scrollY - offs[i].top) / Math.max(1, offs[i].h - innerHeight) : 0;
 
 function tick() {
-  const y = lenis ? lenis.animatedScroll : scrollY, vh = innerHeight;
+  // phones scroll natively (Lenis only smooths wheels), so read Safari's own scroll position and re-measure live —
+  // iOS reflows as the URL bar collapses and stale offsets froze the car
+  if (mobile) measure();
+  const y = lenis && !mobile ? lenis.animatedScroll : scrollY, vh = innerHeight;
   if (!offs.length) return;
   const R = offs.map(o => (y - o.top) / Math.max(1, o.h - vh)), P = R.map(r => clamp(r));
   let cur = 0; offs.forEach((o, i) => { if (y >= o.top - 2) cur = i; });
@@ -180,6 +183,14 @@ function tick() {
   $('#progress').style.transform = `scaleX(${clamp(y / (document.documentElement.scrollHeight - vh))})`;
 }
 gsap.ticker.add(tick);
+
+// ?debug → tiny on-screen readout for diagnosing on a real phone
+if (/[?&]debug\b/.test(location.search)) {
+  const d = document.createElement('pre'), lost = { v: false };
+  d.style.cssText = 'position:fixed;left:8px;top:80px;z-index:999;margin:0;padding:6px 8px;font:11px/1.35 ui-monospace,monospace;color:#0f0;background:rgba(0,0,0,.75);pointer-events:none';
+  document.body.appendChild(d); gl.addEventListener('webglcontextlost', () => (lost.v = true));
+  gsap.ticker.add(() => { d.textContent = `y ${Math.round(scrollY)} lenis ${lenis ? Math.round(lenis.animatedScroll) : '-'}\nvh ${innerHeight} solidTop ${Math.round(solidTop)}\nactive ${S.active} stage ${!!stage} glLost ${lost.v}\nmobile ${mobile} yaw ${S.cam.yaw.toFixed(2)}`; });
+}
 
 /* ---------------- reveals ---------------- */
 $$('[data-split]').forEach(el => {
