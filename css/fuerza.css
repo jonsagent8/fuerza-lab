@@ -36,3 +36,5 @@
 .contact div { grid-template-columns: 112px 1fr; }
 /* Longer wash scene so the dirt → foam → rinse sequence scrolls slower (was 260vh) */
 .scene#wash { height: 500vh; }
+/* Tint + wrap orbit the car 360° each, so give them room */
+.scene#tint, .scene#wrap { height: 420vh; }

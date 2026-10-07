@@ -85,6 +85,7 @@ const K = [
   { yaw: 1.7, r: 10, h: 3.2, ty: .4, tx: 0, ox: 0 },
 ];
 if (mobile) K.forEach((k, i) => { k.ox = 0; k.r *= 1.3; k.ty += i === 0 ? 1.05 : -.75; k.h += i === 0 ? 0 : .3; });
+const TAU = Math.PI * 2, SPIN = [0, 0, 0, 0, -TAU, -3 * TAU, -3 * TAU];
 const mixKey = (a, b, t) => Object.fromEntries(Object.keys(a).map(k => [k, lerp(a[k], b[k], t)]));
 
 const COLORS = $$('.swatch').map(b => ({ c: b.dataset.c, f: b.dataset.f, el: b, name: b.querySelector('span').textContent }));
@@ -113,8 +114,9 @@ function tick() {
 
   // camera
   const holdFrom = cur === 0 ? .25 : .74;
-  const a = { ...K[cur] }; if (cur === 4) a.yaw += P[4] * 2.6;
-  const b = { ...K[cur + 1] }; if (cur + 1 === 4) b.yaw += 0;
+  // tint + wrap each orbit the car a full 360° while held; SPIN keeps yaw continuous so the eased camera never unwinds
+  const a = { ...K[cur] }; a.yaw += SPIN[cur] - (cur === 3 || cur === 4 ? TAU * ss(.04, .74, P[cur]) : 0);
+  const b = { ...K[cur + 1] }; b.yaw += SPIN[cur + 1];
   Object.assign(S.cam, mixKey(a, b, ss(holdFrom, 1, P[cur])));
   if (window.__view) Object.assign(S.cam, window.__view);
 
@@ -131,7 +133,7 @@ function tick() {
 
   // tint
   const pt = P[3];
-  if (manualVlt && Math.abs(R[3] - manualVlt.at) > .12) manualVlt = null;
+  if (manualVlt && cur !== 3) manualVlt = null; // a picked shade holds until you leave the scene
   let vlt = VLTS[Math.min(4, Math.floor(clamp(pt) * 5.5))];
   if (manualVlt) vlt = manualVlt.v;
   if (cur >= 3) glass = vltToOpacity(cur > 3 ? 20 : vlt);
@@ -143,7 +145,7 @@ function tick() {
 
   // wrap: auto-advance colors through the scene unless a swatch was clicked nearby
   const pr = R[4];
-  if (manualWrap && Math.abs(pr - manualWrap.at) > .14) manualWrap = null;
+  if (manualWrap && cur !== 4) manualWrap = null; // a picked color holds through the 360° orbit
   const seg = cur !== 4 ? -1 : pr < .06 ? 0 : Math.min(5, Math.floor((pr - .06) / .15));
   if (!manualWrap && seg !== wrapSeg) { wrapSeg = seg; applyWrap(seg); }
 
