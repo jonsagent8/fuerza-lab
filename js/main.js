@@ -10,6 +10,7 @@ const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 gsap.registerPlugin(ScrollTrigger);
+ScrollTrigger.config({ ignoreMobileResize: true });
 $('#yr').textContent = new Date().getFullYear();
 
 /* ---------------- smooth scroll ---------------- */
@@ -69,7 +70,9 @@ function measure() {
   offs = scenes.map(el => { const r = el.getBoundingClientRect(); return { top: r.top + scrollY, h: el.offsetHeight }; });
   solidTop = solid.getBoundingClientRect().top + scrollY;
 }
-measure(); window.addEventListener('resize', () => { measure(); ScrollTrigger.refresh(); }); window.addEventListener('load', measure);
+// on touch devices the URL bar showing/hiding fires height-only resizes mid-scroll; re-measuring then makes the page jump
+let lastW = innerWidth;
+measure(); window.addEventListener('resize', () => { if (mobile && innerWidth === lastW) return; lastW = innerWidth; measure(); ScrollTrigger.refresh(); }); window.addEventListener('load', measure);
 
 // camera keyframes per scene: yaw around the car, distance, height, look-at height, sideways offset (car away from the panel)
 const K = [
@@ -87,7 +90,7 @@ const mixKey = (a, b, t) => Object.fromEntries(Object.keys(a).map(k => [k, lerp(
 const COLORS = $$('.swatch').map(b => ({ c: b.dataset.c, f: b.dataset.f, el: b, name: b.querySelector('span').textContent }));
 const VLTS = [70, 50, 35, 20, 5], vltToOpacity = v => clamp(1.02 - v / 100 * 1.2, .12, .96);
 const HERO_PAINT = ['#b0121a', 'gloss'];
-let wrapSeg = -2, manualWrap = null, manualVlt = null, glassSm = .55, lastY = 0, hudCache = '';
+let wrapSeg = -2, manualWrap = null, manualVlt = null, glassSm = .55, lastY = 0, navTravel = 0, hudCache = '';
 const dots = $$('#dots a'), steps = $$('.steps li'), panels = scenes.map(s => $('.panel', s));
 const hud = { scene: $('#hudScene'), status: $('#hudStatus'), read: $('#hudRead') };
 const NAMES = ['ARRIVAL', 'HAND WASH', 'INTERIOR', 'WINDOW TINT', 'COLOR WRAP', 'PAINT PROTECTION'];
@@ -172,9 +175,11 @@ function tick() {
 
   // nav + progress
   nav.classList.toggle('is-scrolled', y > 40);
-  nav.classList.toggle('is-hidden', y > lastY + 2 && y > 400 && !nav.classList.contains('menu-open'));
-  if (y < lastY - 2) nav.classList.remove('is-hidden');
-  lastY = y;
+  // hide/show only after a sustained move in one direction, so slow or eased scrolling can't flicker it
+  const dy = y - lastY; lastY = y;
+  if (dy) navTravel = Math.sign(dy) === Math.sign(navTravel) ? navTravel + dy : dy;
+  if (y < 400 || nav.classList.contains('menu-open') || navTravel < -60) nav.classList.remove('is-hidden');
+  else if (navTravel > 60) nav.classList.add('is-hidden');
   $('#progress').style.transform = `scaleX(${clamp(y / (document.documentElement.scrollHeight - vh))})`;
 }
 gsap.ticker.add(tick);
