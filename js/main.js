@@ -90,7 +90,7 @@ const mixKey = (a, b, t) => Object.fromEntries(Object.keys(a).map(k => [k, lerp(
 const COLORS = $$('.swatch').map(b => ({ c: b.dataset.c, f: b.dataset.f, el: b, name: b.querySelector('span').textContent }));
 const VLTS = [70, 50, 35, 20, 5], vltToOpacity = v => clamp(1.02 - v / 100 * 1.2, .12, .96);
 const HERO_PAINT = ['#b0121a', 'gloss'];
-let wrapSeg = -2, manualWrap = null, manualVlt = null, glassSm = .55, lastY = 0, navTravel = 0, hudCache = '';
+let wrapSeg = -2, manualWrap = null, manualVlt = null, glassSm = .55, hudCache = '';
 const dots = $$('#dots a'), steps = $$('.steps li'), panels = scenes.map(s => $('.panel', s));
 const hud = { scene: $('#hudScene'), status: $('#hudStatus'), read: $('#hudRead') };
 const NAMES = ['ARRIVAL', 'HAND WASH', 'INTERIOR', 'WINDOW TINT', 'COLOR WRAP', 'PAINT PROTECTION'];
@@ -175,11 +175,6 @@ function tick() {
 
   // nav + progress
   nav.classList.toggle('is-scrolled', y > 40);
-  // hide/show only after a sustained move in one direction, so slow or eased scrolling can't flicker it
-  const dy = y - lastY; lastY = y;
-  if (dy) navTravel = Math.sign(dy) === Math.sign(navTravel) ? navTravel + dy : dy;
-  if (y < 400 || nav.classList.contains('menu-open') || navTravel < -60) nav.classList.remove('is-hidden');
-  else if (navTravel > 60) nav.classList.add('is-hidden');
   $('#progress').style.transform = `scaleX(${clamp(y / (document.documentElement.scrollHeight - vh))})`;
 }
 gsap.ticker.add(tick);
