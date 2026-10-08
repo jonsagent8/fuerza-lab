@@ -91,20 +91,31 @@ const mixKey = (a, b, t) => Object.fromEntries(Object.keys(a).map(k => [k, lerp(
 const COLORS = $$('.swatch').map(b => ({ c: b.dataset.c, f: b.dataset.f, el: b, name: b.querySelector('span').textContent }));
 const VLTS = [70, 50, 35, 20, 5], vltToOpacity = v => clamp(1.02 - v / 100 * 1.2, .12, .96);
 const HERO_PAINT = ['#b0121a', 'gloss'];
-let wrapSeg = -2, manualWrap = null, manualVlt = null, glassSm = .55, hudCache = '';
+let wrapSeg = -2, pickWrap = 0, pickVlt = 35, dragYaw = 0, glassSm = .55, hudCache = '';
 const dots = $$('#dots a'), steps = $$('.steps li'), panels = scenes.map(s => $('.panel', s));
 const hud = { scene: $('#hudScene'), status: $('#hudStatus'), read: $('#hudRead') };
 const NAMES = ['ARRIVAL', 'HAND WASH', 'INTERIOR', 'WINDOW TINT', 'COLOR WRAP', 'PAINT PROTECTION'];
 
-$$('.vlt .chip').forEach(ch => ch.addEventListener('click', () => { manualVlt = { v: +ch.dataset.vlt, at: raw(3) }; }));
-COLORS.forEach((c, i) => c.el.addEventListener('click', () => { manualWrap = { i, at: raw(4) }; applyWrap(i); }));
+$$('.vlt .chip').forEach(ch => ch.addEventListener('click', () => { pickVlt = +ch.dataset.vlt; }));
+COLORS.forEach((c, i) => c.el.addEventListener('click', () => { pickWrap = i; wrapSeg = i; applyWrap(i); }));
+
+// swipe/drag sideways on the tint + wrap scenes to spin the car by hand (vertical swipes still scroll the page)
+{
+  let drag = null;
+  const spinScenes = ['#tint', '#wrap'].map(id => $(`${id} .scene__sticky`));
+  spinScenes.forEach(el => {
+    el.style.touchAction = 'pan-y';
+    el.addEventListener('pointerdown', e => { if (e.target.closest('button, a, .panel') || (e.pointerType === 'mouse' && e.button !== 0)) return; drag = { x: e.clientX, id: e.pointerId }; });
+  });
+  addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; dragYaw -= (e.clientX - drag.x) / innerWidth * 5; drag.x = e.clientX; }, { passive: true });
+  ['pointerup', 'pointercancel'].forEach(t => addEventListener(t, e => { if (drag && e.pointerId === drag.id) drag = null; }));
+}
 function applyWrap(i) {
   const c = i < 0 ? { c: HERO_PAINT[0], f: HERO_PAINT[1] } : COLORS[i];
   stage && stage.setWrap(c.c, c.f);
   COLORS.forEach((o, j) => o.el.classList.toggle('on', j === i));
   if (i >= 0) $('#wrapNow').textContent = `${COLORS[i].name.toUpperCase()} · ${COLORS[i].f.toUpperCase()} FINISH`;
 }
-const raw = i => offs[i] ? (scrollY - offs[i].top) / Math.max(1, offs[i].h - innerHeight) : 0;
 
 function tick() {
   // phones scroll natively (Lenis only smooths wheels), so read Safari's own scroll position and re-measure live —
@@ -118,8 +129,9 @@ function tick() {
   // camera
   const holdFrom = cur === 0 ? .25 : .74;
   // tint + wrap each orbit the car a full 360° while held; SPIN keeps yaw continuous so the eased camera never unwinds
-  const a = { ...K[cur] }; a.yaw += SPIN[cur] - (cur === 3 || cur === 4 ? TAU * ss(.04, .74, P[cur]) : 0);
-  const b = { ...K[cur + 1] }; b.yaw += SPIN[cur + 1];
+  if (cur !== 3 && cur !== 4) dragYaw *= .94; // hand spin eases back out after the tint/wrap scenes
+  const a = { ...K[cur] }; a.yaw += SPIN[cur] - (cur === 3 || cur === 4 ? TAU * ss(.04, .74, P[cur]) : 0) + dragYaw;
+  const b = { ...K[cur + 1] }; b.yaw += SPIN[cur + 1] + dragYaw;
   Object.assign(S.cam, mixKey(a, b, ss(holdFrom, 1, P[cur])));
   if (window.__view) Object.assign(S.cam, window.__view);
 
@@ -135,22 +147,18 @@ function tick() {
   let glass = lerp(.68, .1, S.interior);
 
   // tint
-  const pt = P[3];
-  if (manualVlt && cur !== 3) manualVlt = null; // a picked shade holds until you leave the scene
-  let vlt = VLTS[Math.min(4, Math.floor(clamp(pt) * 5.5))];
-  if (manualVlt) vlt = manualVlt.v;
-  if (cur >= 3) glass = vltToOpacity(cur > 3 ? 20 : vlt);
+  // the shade only changes when a chip is tapped, so scrolling to orbit the car never swaps it
+  const vlt = pickVlt;
+  if (cur >= 3) glass = vltToOpacity(vlt);
   if (cur === 3 && R[3] < 0) glass = vltToOpacity(70);
   glassSm += (glass - glassSm) * .12; S.glass = glassSm;
   S.cabin += ((cur === 3 && R[3] > -.2 ? 1 : 0) - S.cabin) * .08;
   const vltShown = cur >= 3 ? vlt : 70;
   if ($('#vltNum').textContent !== String(vltShown)) { $('#vltNum').textContent = vltShown; $$('.vlt .chip').forEach(c => c.classList.toggle('on', +c.dataset.vlt === vltShown)); }
 
-  // wrap: auto-advance colors through the scene unless a swatch was clicked nearby
-  const pr = R[4];
-  if (manualWrap && cur !== 4) manualWrap = null; // a picked color holds through the 360° orbit
-  const seg = cur !== 4 ? -1 : pr < .06 ? 0 : Math.min(5, Math.floor((pr - .06) / .15));
-  if (!manualWrap && seg !== wrapSeg) { wrapSeg = seg; applyWrap(seg); }
+  // wrap: the picked color holds for the whole orbit; outside the scene the car is back in Fuerza Red
+  const seg = cur !== 4 ? -1 : pickWrap;
+  if (seg !== wrapSeg) { wrapSeg = seg; applyWrap(seg); }
 
   // ppf
   const pf = P[5];

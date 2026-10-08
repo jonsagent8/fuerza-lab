@@ -38,3 +38,4 @@
 .scene#wash { height: 500vh; }
 /* Tint + wrap orbit the car 360° each, so give them room */
 .scene#tint, .scene#wrap { height: 420vh; }
+.spin-hint { color: var(--cyan); margin-top: 6px; }
