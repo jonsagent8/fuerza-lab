@@ -34,8 +34,34 @@
 .cal__foot a { color: var(--cyan); text-decoration: none; }
 .foot__big { font-size: clamp(64px, 15.5vw, 260px); padding-right: .12em; overflow: visible; white-space: nowrap; }
 .contact div { grid-template-columns: 112px 1fr; }
-/* Longer wash scene so the dirt → foam → rinse sequence scrolls slower (was 260vh) */
+/* Longer wash scene so the foam → rinse sequence scrolls slower (was 260vh) */
 .scene#wash { height: 500vh; }
-/* Tint + wrap orbit the car 360° each, so give them room */
-.scene#tint, .scene#wrap { height: 420vh; }
-.spin-hint { color: var(--cyan); margin-top: 6px; }
+
+/* ---------- video scenes: a sticky full-bleed canvas under each pinned section ---------- */
+.hero { height: 280vh; }
+.media { position: sticky; top: 0; height: 100svh; margin-bottom: -100svh; overflow: hidden; z-index: 0; background: #060607; }
+.media canvas { display: block; width: 100%; height: 100%; }
+/* scrim so the copy stays readable over bright frames */
+.media::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(6,6,7,.55)), linear-gradient(transparent 70%, rgba(6,6,7,.6)); }
+.hero .media::after { background: linear-gradient(90deg, rgba(6,6,7,.78), rgba(6,6,7,.25) 55%, transparent), linear-gradient(transparent 70%, rgba(6,6,7,.7)); }
+.scene__sticky, .hero__inner, .hero__foot { z-index: 1; }
+.hero__foot { position: absolute; }
+
+/* correction + finale: the copy sits over the clip instead of a panel */
+.scene--over { height: 300vh; }
+.scene--over .scene__sticky { flex-direction: column; align-items: stretch; justify-content: space-between; gap: 24px; padding: 110px var(--gutter) 48px; max-width: 1440px; margin: 0 auto; }
+.scene--over .block__head { margin-bottom: 0; }
+.scene--over .media::after { background: linear-gradient(rgba(6,6,7,.78), rgba(6,6,7,.2) 40%, rgba(6,6,7,.2) 60%, rgba(6,6,7,.85)); }
+.scene--over .block__title { text-shadow: 0 2px 30px rgba(0,0,0,.5); }
+.compare__tags { position: relative; height: 34px; }
+.compare__tags .compare__tag { top: 0; }
+.correction .compare__legend { justify-content: flex-start; }
+.process .flow__n { background: rgba(7,7,8,.7); backdrop-filter: blur(8px); }
+.process .flow p { color: #c9c6be; }
+@media (max-width: 760px) {
+  .scene--over .scene__sticky { padding: 96px 16px 28px; }
+  .process .flow { gap: 10px; } .process .flow li { grid-template-columns: 52px 1fr; align-items: center; gap: 4px 12px; }
+  .process .flow__n { width: 46px; height: 46px; font-size: 15px; grid-row: span 2; }
+  .process .flow h3 { margin: 0; font-size: 18px; } .process .flow p { font-size: 14px; }
+}

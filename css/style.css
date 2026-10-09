@@ -1,4 +1,4 @@
-/* Layout concept: a fixed WebGL stage under the first six scenes; glass panels scroll over it, then solid sections slide up and cover it. */
+/* Layout concept: each showcase scene pins a full-bleed canvas (Higgsfield clip frames, scrubbed by scroll); glass panels sit over it, then solid sections slide up. */
 :root {
   --ink: #070708;         /* neutral black, like the logo background */
   --ink-2: #0f0f12;       /* raised surfaces */
@@ -37,7 +37,6 @@ p { margin: 0; }
 @media (hover: hover) and (pointer: fine) { html.has-cursor, html.has-cursor * { cursor: none !important; } }
 
 /* ---------- stage layers ---------- */
-#gl { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
 #bubbles { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 60; pointer-events: none; }
 main { position: relative; z-index: 1; }
 
@@ -212,13 +211,6 @@ body.past-showcase .hud, body.past-showcase .dots, body.in-hero .hud { opacity: 
 @keyframes marquee { to { transform: translateX(-50%); } }
 
 /* compare */
-.compare { position: relative; aspect-ratio: 16 / 8; max-width: 100%; border-radius: 26px; overflow: hidden; border: 1px solid var(--line); touch-action: pan-y; }
-.compare canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.compare__handle { --x: 50%; position: absolute; top: 0; bottom: 0; left: var(--x); width: 2px; background: var(--film); transform: translateX(-1px); }
-.compare__handle span { position: absolute; top: 50%; left: 50%; width: 54px; height: 54px; transform: translate(-50%, -50%); border-radius: 50%; background: rgba(7,7,8,.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.35); }
-.compare__handle span::before, .compare__handle span::after { content: ""; position: absolute; top: 50%; width: 8px; height: 8px; border-top: 1.5px solid #fff; border-left: 1.5px solid #fff; }
-.compare__handle span::before { left: 14px; transform: translateY(-50%) rotate(-45deg); }
-.compare__handle span::after { right: 14px; transform: translateY(-50%) rotate(135deg); }
 .compare__tag { position: absolute; top: 18px; font-size: 11px; letter-spacing: .16em; padding: 7px 12px; border-radius: 999px; background: rgba(7,7,8,.55); backdrop-filter: blur(8px); border: 1px solid var(--line); pointer-events: none; }
 .compare__tag--l { left: 18px; } .compare__tag--r { right: 18px; }
 .compare__legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 16px; font-size: 12px; color: var(--muted); }
@@ -333,7 +325,6 @@ body.past-showcase .hud, body.past-showcase .dots, body.in-hero .hud { opacity: 
   .hero__inner { justify-content: flex-start; padding-top: 120px; }
   .cards, .tiers, .flow, .form__row { grid-template-columns: minmax(0, 1fr); }
   .flow::before { display: none; }
-  .compare { aspect-ratio: 4 / 3; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

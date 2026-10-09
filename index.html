@@ -15,12 +15,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..900;1,100..125,400..900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/fuerza.css">
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
-} }
-</script>
+<link rel="preload" as="image" href="assets/frames/arrival/desktop/0001.webp" media="(min-width: 768px)">
+<link rel="preload" as="image" href="assets/frames/arrival/mobile/0001.webp" media="(max-width: 767px)">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
@@ -36,7 +32,6 @@
   </div>
 </div>
 
-<canvas id="gl" aria-hidden="true"></canvas>
 <canvas id="bubbles" aria-hidden="true"></canvas>
 <div class="cursor" id="cursor" aria-hidden="true"><span class="cursor__ring"></span><span class="cursor__dot"></span><span class="cursor__label" id="cursorLabel"></span></div>
 <div class="progress" aria-hidden="true"><span id="progress"></span></div>
@@ -50,7 +45,7 @@
   <button class="nav__menu" id="navMenu" aria-label="Open menu" aria-expanded="false"><span></span><span></span></button>
 </header>
 
-<!-- HUD readouts that follow the 3D showcase -->
+<!-- HUD readouts that follow the video showcase -->
 <aside class="hud mono" id="hud" aria-hidden="true">
   <div class="hud__row"><span class="hud__k">SCENE</span><span class="hud__v" id="hudScene">00 / ARRIVAL</span></div>
   <div class="hud__row"><span class="hud__k">STATUS</span><span class="hud__v" id="hudStatus">SHOWROOM READY</span></div>
@@ -61,8 +56,9 @@
 </nav>
 
 <main id="top">
-  <!-- ============ SHOWCASE (3D car stays fixed behind these) ============ -->
-  <section class="scene hero" data-scene="0">
+  <!-- ============ SHOWCASE (Higgsfield clips, scrubbed by scroll on a sticky canvas) ============ -->
+  <section class="scene hero" data-scene="0" data-media="arrival" data-still="1">
+    <div class="media" aria-hidden="true"><canvas></canvas></div>
     <div class="hero__inner">
       <p class="eyebrow mono" data-scramble>CLEAN IS A STANDARD.</p>
       <h1 class="hero__title"><span class="line" data-split>Shine is</span><span class="line film-text" data-split>fuerza.</span></h1>
@@ -73,12 +69,12 @@
       </div>
     </div>
     <div class="hero__foot mono">
-      <span class="hint"><i class="hint__dot"></i>Move your cursor across the paint</span>
       <span class="scrollcue">Scroll to start the wash<i></i></span>
     </div>
   </section>
 
-  <section class="scene" id="wash" data-scene="1">
+  <section class="scene" id="wash" data-scene="1" data-media="wash" data-still="1">
+    <div class="media" aria-hidden="true"><canvas></canvas></div>
     <div class="scene__sticky">
       <div class="panel panel--left">
         <p class="eyebrow mono">01 · HAND WASH</p>
@@ -93,7 +89,8 @@
     </div>
   </section>
 
-  <section class="scene" id="interior" data-scene="2">
+  <section class="scene" id="interior" data-scene="2" data-media="interior" data-still="1">
+    <div class="media" aria-hidden="true"><canvas></canvas></div>
     <div class="scene__sticky">
       <div class="panel panel--right">
         <p class="eyebrow mono">02 · INTERIOR</p>
@@ -109,7 +106,8 @@
     </div>
   </section>
 
-  <section class="scene" id="tint" data-scene="3">
+  <section class="scene" id="tint" data-scene="3" data-media="tint" data-role="tint" data-fit="width" data-y=".3">
+    <div class="media" aria-hidden="true"><canvas></canvas></div>
     <div class="scene__sticky">
       <div class="panel panel--left">
         <p class="eyebrow mono">03 · WINDOW TINT</p>
@@ -121,13 +119,13 @@
             <button class="chip" data-vlt="70">70%</button><button class="chip" data-vlt="50">50%</button><button class="chip" data-vlt="35">35%</button><button class="chip" data-vlt="20">20%</button><button class="chip" data-vlt="5">5%</button>
           </div>
           <p class="note mono">VLT is the share of visible light the film lets through. Lower is darker. Legal limits vary by state, and I'll tell you yours.</p>
-          <p class="note mono spin-hint">Tap a shade, then swipe the car sideways to spin it.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="scene" id="wrap" data-scene="4">
+  <section class="scene" id="wrap" data-scene="4" data-media="wrap-red" data-role="wrap" data-fit="width" data-y=".3">
+    <div class="media" aria-hidden="true"><canvas></canvas></div>
     <div class="scene__sticky">
       <div class="panel panel--right">
         <p class="eyebrow mono">04 · VINYL WRAP</p>
@@ -142,12 +140,12 @@
           <button class="swatch" data-c="#1e4fd0" data-f="gloss" style="--c:#1e4fd0"><i></i><span>Portimao Blue</span></button>
         </div>
         <p class="note mono" id="wrapNow">FINISH · GLOSS — click any swatch to rewrap the car</p>
-        <p class="note mono spin-hint">Tap a color, then swipe the car sideways to spin it.</p>
       </div>
     </div>
   </section>
 
-  <section class="scene" id="ppf" data-scene="5">
+  <section class="scene" id="ppf" data-scene="5" data-media="ppf" data-still=".75">
+    <div class="media" aria-hidden="true"><canvas></canvas></div>
     <div class="scene__sticky">
       <div class="panel panel--left">
         <p class="eyebrow mono">05 · PAINT PROTECTION FILM</p>
@@ -159,25 +157,25 @@
     </div>
   </section>
 
-  <!-- ============ SOLID SECTIONS (cover the 3D canvas) ============ -->
+  <!-- ============ SOLID SECTIONS ============ -->
   <div class="solid">
     <section class="marquee" aria-hidden="true">
       <div class="marquee__track"><span>Ceramic coating</span><i></i><span>Paint correction</span><i></i><span>Ceramic window tint</span><i></i><span>Color-change wraps</span><i></i><span>Self-healing PPF</span><i></i><span>Interior restoration</span><i></i><span>Ceramic coating</span><i></i><span>Paint correction</span><i></i><span>Ceramic window tint</span><i></i><span>Color-change wraps</span><i></i><span>Self-healing PPF</span><i></i><span>Interior restoration</span><i></i></div>
     </section>
 
-    <section class="block correction" id="correction">
-      <div class="block__head">
-        <p class="eyebrow mono">PAINT CORRECTION</p>
-        <h2 class="block__title" data-split>Swirls, gone.</h2>
-        <p class="block__lede">Swirl marks are thousands of fine circular scratches that show up under any bright light. Machine polishing levels them out by removing only a few microns of clear coat.</p>
+    <section class="scene scene--over correction" id="correction" data-media="correction" data-still="1">
+      <div class="media" aria-hidden="true"><canvas></canvas></div>
+      <div class="scene__sticky">
+        <div class="block__head">
+          <p class="eyebrow mono">PAINT CORRECTION</p>
+          <h2 class="block__title" data-split>Swirls, gone.</h2>
+          <p class="block__lede">Swirl marks are thousands of fine circular scratches that show up under any bright light. Machine polishing levels them out by removing only a few microns of clear coat.</p>
+        </div>
+        <div class="over__foot">
+          <div class="compare__tags"><span class="compare__tag compare__tag--l mono">BEFORE · SWIRLED</span><span class="compare__tag compare__tag--r mono">AFTER · CORRECTED</span></div>
+          <div class="compare__legend mono"><span>≈ 3 µm removed from ≈ 40 µm of clear coat</span></div>
+        </div>
       </div>
-      <div class="compare" id="compare" data-cursor="Drag">
-        <canvas id="compareCanvas"></canvas>
-        <div class="compare__handle" id="compareHandle"><span></span></div>
-        <span class="compare__tag compare__tag--l mono">BEFORE · SWIRLED</span>
-        <span class="compare__tag compare__tag--r mono">AFTER · CORRECTED</span>
-      </div>
-      <div class="compare__legend mono"><span>Drag the divider. Move your cursor to move the light.</span><span>≈ 3 µm removed from ≈ 40 µm of clear coat</span></div>
     </section>
 
     <section class="block services" id="services">
@@ -264,7 +262,9 @@
       </div>
     </section>
 
-    <section class="block process" id="process">
+    <section class="scene scene--over process" id="process" data-media="finale" data-still=".5">
+      <div class="media" aria-hidden="true"><canvas></canvas></div>
+      <div class="scene__sticky">
       <div class="block__head">
         <p class="eyebrow mono">HOW IT WORKS</p>
         <h2 class="block__title" data-split>Three steps to the reveal.</h2>
@@ -274,6 +274,7 @@
         <li><span class="flow__n">02</span><h3>Inspection</h3><p>We walk the car together under the lights and agree on the plan and the price before I start.</p></li>
         <li><span class="flow__n">03</span><h3>The reveal</h3><p>Pick up a finished car, with care tips and photos of the work.</p></li>
       </ol>
+      </div>
     </section>
 
     <section class="block book" id="book">
@@ -307,7 +308,6 @@
     <footer class="foot">
       <div class="foot__big" aria-hidden="true">FUERZA</div>
       <div class="foot__row mono"><span>© <span id="yr">2026</span> Fuerza Auto Care LLC</span><span><a href="#" class="magnetic">Instagram</a> · <a href="#" class="magnetic">TikTok</a> · <a href="#" class="magnetic">Reviews</a></span><a href="#top" class="magnetic">Back to top ↑</a></div>
-      <p class="foot__credit mono">3D car: <a href="https://sketchfab.com/3d-models/2022-bmw-m240i-coupe-822a4e2d8a0e4568beda00539f4ad341" target="_blank" rel="noopener">“2022 BMW M240i Coupe”</a> by Nazh Design, licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Recolored and modified.</p>
     </footer>
   </div>
 </main>

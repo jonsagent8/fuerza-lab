@@ -1,5 +1,5 @@
-import { createStage, S } from './car.js';
 import * as FX from './fx.js';
+import { seq, Painter, SMALL } from './frames.js';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -26,29 +26,42 @@ $$('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
   e.preventDefault(); nav.classList.remove('menu-open'); $('#navMenu').setAttribute('aria-expanded', 'false'); scrollTo(id === '#top' ? 0 : el);
 }));
 
-/* ---------------- 3D stage ---------------- */
-const gl = $('#gl');
-let stage = null;
-try { stage = createStage(gl, { mobile }); } catch (err) { console.error(err); gl.style.background = 'radial-gradient(ellipse at 60% 60%, #2a0b0d, #070708 70%)'; }
-window.addEventListener('pointermove', e => {
-  S.mouse.x = e.clientX / innerWidth * 2 - 1; S.mouse.y = -(e.clientY / innerHeight * 2 - 1);
-  if (stage && S.active && e.pointerType === 'mouse') stage.setPointer(e.clientX, e.clientY);
-}, { passive: true });
-
 /* ---------------- cursor + interactive bits ---------------- */
-if (finePointer && !reduce) { FX.cursor($('#cursor'), $('#cursorLabel'), gl); FX.bubbles($('#bubbles')); }
+if (finePointer && !reduce) { FX.cursor($('#cursor'), $('#cursorLabel')); FX.bubbles($('#bubbles')); }
 FX.magnetic(finePointer ? $$('.magnetic') : []);
 FX.tilt($$('.tilt'));
-FX.compare($('#compare'), $('#compareCanvas'), $('#compareHandle'));
 FX.heal($('#healPad'), $('#healCanvas'), $('#healTemp'));
+
+/* ---------------- video scenes: Higgsfield clips as scroll-scrubbed frame sequences ---------------- */
+// every [data-media] section holds a sticky full-bleed canvas. `still` is the frame shown with reduced motion.
+const media = $$('[data-media]').map(el => {
+  const name = el.dataset.media, s = seq(name), canvas = $('.media canvas', el);
+  return { el, name, role: el.dataset.role || '', s, p: new Painter(canvas, { focusX: +(el.dataset.focus || .5), fit: el.dataset.fit || 'cover', y: +(el.dataset.y || .4) }), f: 0, target: 0, still: +(el.dataset.still || 1), near: false, top: 0, h: 1 };
+});
+const M = Object.fromEntries(media.map(m => [m.role || m.name, m]));
+const WRAPS = ['wrap-red', 'wrap-graphite', 'wrap-pearl', 'wrap-chrome', 'wrap-matteblack'];
+
+// lazy-load a scene's frames once it is within one viewport of the screen; frame 0 goes up straight away as the poster
+media.forEach(m => m.s.poster().then(() => m.p.draw(m.s, reduce ? m.still * (m.s.n - 1) : m.f)));
+const io = new IntersectionObserver(es => es.forEach(e => {
+  const m = media.find(x => x.el === e.target); m.near = e.isIntersecting;
+  if (e.isIntersecting && !reduce && m.role !== 'wrap') m.s.load();
+  if (e.isIntersecting && reduce && m.role === 'tint') m.s.img(Math.round(tint.f));
+  if (e.isIntersecting && reduce && !m.role) m.s.img(Math.round(m.still * (m.s.n - 1))).done.then(() => m.p.draw(m.s, m.still * (m.s.n - 1)));
+}), { rootMargin: '100% 0px' });
+media.forEach(m => io.observe(m.el));
 
 /* ---------------- loader ---------------- */
 const heroWords = $$('.hero__title [data-split]').flatMap(el => [...FX.split(el)]);
 gsap.set(heroWords, { yPercent: 110 });
 gsap.set(['.hero__sub', '.hero__cta', '.hero .eyebrow', '.hero__foot'], { autoAlpha: 0, y: 24 });
+const arrivalIntro = { v: reduce ? 1 : 0 };   // the bay lights come on by themselves after the loader; scroll scrubs the rest
 (function loader() {
   const bar = $('#loaderBar'), pct = $('#loaderPct'), txt = $('#loaderTxt'), words = ['PRE-RINSE', 'SNOW FOAM', 'HAND WASH', 'SPOT-FREE RINSE', 'READY'];
-  const p = { v: 0 }, ready = Promise.race([stage ? stage.ready : Promise.resolve(), new Promise(r => setTimeout(r, 5000))]);
+  const p = { v: 0 }, a = M.arrival.s;
+  // wait for the poster plus the coarse pass of the arrival clip, capped at 5 s
+  const ready = Promise.race([a.poster().then(() => Promise.all(Array.from({ length: Math.ceil(a.n / 16) }, (_, i) => a.img(i * 16).done))), new Promise(r => setTimeout(r, 5000))]);
+  if (!reduce) a.load();
   const fill = gsap.to(p, { v: 88, duration: 1.6, ease: 'power2.out', onUpdate: draw });
   function draw() { bar.style.width = p.v + '%'; pct.textContent = String(Math.round(p.v)).padStart(3, '0'); txt.textContent = words[Math.min(4, Math.floor(p.v / 21))]; }
   Promise.all([ready, fill.then(), document.fonts ? document.fonts.ready : null]).then(() => {
@@ -56,131 +69,130 @@ gsap.set(['.hero__sub', '.hero__cta', '.hero .eyebrow', '.hero__foot'], { autoAl
       .to(p, { v: 100, duration: .45, ease: 'power1.inOut', onUpdate: draw })
       .to('#loader', { clipPath: 'inset(0 0 100% 0)', duration: 1.1, ease: 'expo.inOut' }, '+=.1')
       .set('#loader', { display: 'none' })
-      .to(heroWords, { yPercent: 0, duration: 1.2, stagger: .08, ease: 'expo.out' }, '-=.55')
+      .to(arrivalIntro, { v: 1, duration: reduce ? 0 : 2.6, ease: 'power2.inOut' }, '-=.6')
+      .to(heroWords, { yPercent: 0, duration: 1.2, stagger: .08, ease: 'expo.out' }, '-=2.2')
       .to(['.hero .eyebrow', '.hero__sub', '.hero__cta', '.hero__foot'], { autoAlpha: 1, y: 0, duration: 1, stagger: .1, ease: 'power3.out' }, '-=.9')
       .add(() => FX.scramble($('.hero .eyebrow')), '-=1');
     measure();
   });
 })();
 
+/* ---------------- tint: the shade picker drives the film clip ---------------- */
+// 70% VLT sits on an early frame, 5% on the last one. Values in between follow the measured window darkness of the clip.
+const VLTS = [70, 50, 35, 20, 5];
+const tintFrac = v => (window.TINT_CURVE ? window.TINT_CURVE(v) : lerp(.15, 1, (70 - v) / 65));
+const tint = { f: 0, picked: false, tw: null };
+const tintFrame = v => tintFrac(v) * (M.tint.s.n - 1);
+if (reduce) tint.f = tintFrame(35);
+function vltAt(f) {   // invert the curve for the readout while the film animates
+  let best = 70, d = Infinity;
+  for (let v = 5; v <= 70; v++) { const e = Math.abs(tintFrame(v) - f); if (e < d) { d = e; best = v; } }
+  return best;
+}
+function pickVlt(v) {
+  tint.picked = true; tint.tw && tint.tw.kill();
+  if (reduce) { tint.f = tintFrame(v); M.tint.s.img(Math.round(tint.f)); return; }
+  tint.tw = gsap.to(tint, { f: tintFrame(v), duration: .8, ease: 'power3.inOut' });
+}
+$$('.vlt .chip').forEach(ch => ch.addEventListener('click', () => { pickVlt(+ch.dataset.vlt); chipOn(+ch.dataset.vlt); }));
+const chipOn = v => $$('.vlt .chip').forEach(c => c.classList.toggle('on', +c.dataset.vlt === v));
+
+/* ---------------- wrap: each swatch plays its own wrap clip; Portimao Blue is frame 0 of all of them ---------------- */
+const wrap = { clip: WRAPS[0], f: 0, tl: null, pick: -1 };
+const COLORS = $$('.swatch').map((b, i) => ({ el: b, f: b.dataset.f, name: b.querySelector('span').textContent, clip: WRAPS[i] || null }));
+COLORS.forEach(c => {
+  if (!c.clip) return;
+  const pre = () => seq(c.clip).load();
+  c.el.addEventListener('pointerenter', pre); c.el.addEventListener('touchstart', pre, { passive: true }); c.el.addEventListener('focus', pre);
+});
+COLORS.forEach((c, i) => c.el.addEventListener('click', () => applyWrap(i)));
+function applyWrap(i) {
+  const c = COLORS[i]; wrap.pick = i;
+  COLORS.forEach((o, j) => o.el.classList.toggle('on', j === i));
+  $('#wrapNow').textContent = `${c.name.toUpperCase()} · ${c.f.toUpperCase()} FINISH`;
+  wrap.tl && wrap.tl.kill();
+  const back = Math.max(.25, .7 * wrap.f / Math.max(1, seq(wrap.clip).n - 1));
+  if (reduce) { if (c.clip) wrap.clip = c.clip; wrap.f = c.clip ? seq(wrap.clip).n - 1 : 0; seq(wrap.clip).img(Math.round(wrap.f)); return; }
+  const tl = wrap.tl = gsap.timeline();
+  if (wrap.clip !== c.clip && wrap.f > 0) tl.to(wrap, { f: 0, duration: back, ease: 'power2.in' });   // peel back to blue first
+  if (!c.clip) { if (wrap.f > 0 && wrap.clip) tl.to(wrap, { f: 0, duration: back, ease: 'power2.inOut' }); return; }
+  const s = seq(c.clip), loaded = s.load();
+  tl.add(() => { tl.pause(); loaded.then(() => tl.resume()); });                                    // hold until this color's frames are in
+  tl.add(() => { wrap.clip = c.clip; wrap.f = 0; });
+  tl.to(wrap, { f: s.n - 1, duration: 1.8, ease: 'power2.inOut' });
+}
+
 /* ---------------- scroll choreography ---------------- */
-const scenes = $$('[data-scene]'), solid = $('.solid'), nav = $('#nav');
-let offs = [], solidTop = 0;
+const scenes = $$('[data-scene]'), nav = $('#nav');
+let offs = [];
 function measure() {
-  offs = scenes.map(el => { const r = el.getBoundingClientRect(); return { top: r.top + scrollY, h: el.offsetHeight }; });
-  solidTop = solid.getBoundingClientRect().top + scrollY;
+  const top = el => el.getBoundingClientRect().top + scrollY;
+  offs = scenes.map(el => ({ top: top(el), h: el.offsetHeight }));
+  media.forEach(m => { m.top = top(m.el); m.h = m.el.offsetHeight; });
 }
 // on touch devices the URL bar showing/hiding fires height-only resizes mid-scroll; re-measuring then makes the page jump
 let lastW = innerWidth;
 measure(); window.addEventListener('resize', () => { measure(); if (mobile && innerWidth === lastW) return; lastW = innerWidth; ScrollTrigger.refresh(); }); window.addEventListener('load', measure);
 
-// camera keyframes per scene: yaw around the car, distance, height, look-at height, sideways offset (car away from the panel)
-const K = [
-  { yaw: .82, r: 9.4, h: 1.9, ty: 1.15, tx: 0, ox: -1.55 },
-  { yaw: .02, r: 7.9, h: 1.35, ty: .66, tx: 0, ox: -1.35 },
-  { yaw: .38, r: 4.6, h: 1.85, ty: .82, tx: -.15, ox: .75 },
-  { yaw: -.82, r: 6.9, h: 1.55, ty: .72, tx: 0, ox: -1.1 },
-  { yaw: -2.25, r: 7.8, h: 2.0, ty: .58, tx: 0, ox: 1.2 },
-  { yaw: 1.12, r: 5.6, h: .95, ty: .62, tx: .3, ox: -.95 },
-  { yaw: 1.7, r: 10, h: 3.2, ty: .4, tx: 0, ox: 0 },
-];
-if (mobile) K.forEach((k, i) => { k.ox = 0; k.r *= 1.3; k.ty += i === 0 ? 1.05 : -.75; k.h += i === 0 ? 0 : .3; });
-const TAU = Math.PI * 2, SPIN = [0, 0, 0, 0, -TAU, -3 * TAU, -3 * TAU];
-const mixKey = (a, b, t) => Object.fromEntries(Object.keys(a).map(k => [k, lerp(a[k], b[k], t)]));
-
-const COLORS = $$('.swatch').map(b => ({ c: b.dataset.c, f: b.dataset.f, el: b, name: b.querySelector('span').textContent }));
-const VLTS = [70, 50, 35, 20, 5], vltToOpacity = v => clamp(1.02 - v / 100 * 1.2, .12, .96);
-const HERO_PAINT = ['#b0121a', 'gloss'];
-let wrapSeg = -2, pickWrap = 0, pickVlt = 35, dragYaw = 0, glassSm = .55, hudCache = '';
+let hudCache = '';
 const dots = $$('#dots a'), steps = $$('.steps li'), panels = scenes.map(s => $('.panel', s));
 const hud = { scene: $('#hudScene'), status: $('#hudStatus'), read: $('#hudRead') };
 const NAMES = ['ARRIVAL', 'HAND WASH', 'INTERIOR', 'WINDOW TINT', 'COLOR WRAP', 'PAINT PROTECTION'];
-
-$$('.vlt .chip').forEach(ch => ch.addEventListener('click', () => { pickVlt = +ch.dataset.vlt; }));
-COLORS.forEach((c, i) => c.el.addEventListener('click', () => { pickWrap = i; wrapSeg = i; applyWrap(i); }));
-
-// swipe/drag sideways on the tint + wrap scenes to spin the car by hand (vertical swipes still scroll the page)
-{
-  let drag = null;
-  const spinScenes = ['#tint', '#wrap'].map(id => $(`${id} .scene__sticky`));
-  spinScenes.forEach(el => {
-    el.style.touchAction = 'pan-y';
-    el.addEventListener('pointerdown', e => { if (e.target.closest('button, a, .panel') || (e.pointerType === 'mouse' && e.button !== 0)) return; drag = { x: e.clientX, id: e.pointerId }; });
-  });
-  addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; dragYaw -= (e.clientX - drag.x) / innerWidth * 5; drag.x = e.clientX; }, { passive: true });
-  ['pointerup', 'pointercancel'].forEach(t => addEventListener(t, e => { if (drag && e.pointerId === drag.id) drag = null; }));
-}
-function applyWrap(i) {
-  const c = i < 0 ? { c: HERO_PAINT[0], f: HERO_PAINT[1] } : COLORS[i];
-  stage && stage.setWrap(c.c, c.f);
-  COLORS.forEach((o, j) => o.el.classList.toggle('on', j === i));
-  if (i >= 0) $('#wrapNow').textContent = `${COLORS[i].name.toUpperCase()} · ${COLORS[i].f.toUpperCase()} FINISH`;
-}
+const tags = { before: $('.compare__tag--l'), after: $('.compare__tag--r') };
 
 function tick() {
-  // phones scroll natively (Lenis only smooths wheels), so read Safari's own scroll position and re-measure live —
-  // iOS reflows as the URL bar collapses and stale offsets froze the car
+  // phones scroll natively (Lenis only smooths wheels), so read Safari's own scroll position and re-measure live
   if (mobile) measure();
   const y = lenis && !mobile ? lenis.animatedScroll : scrollY, vh = innerHeight;
   if (!offs.length) return;
   const R = offs.map(o => (y - o.top) / Math.max(1, o.h - vh)), P = R.map(r => clamp(r));
   let cur = 0; offs.forEach((o, i) => { if (y >= o.top - 2) cur = i; });
 
-  // camera
-  const holdFrom = cur === 0 ? .25 : .74;
-  // tint + wrap each orbit the car a full 360° while held; SPIN keeps yaw continuous so the eased camera never unwinds
-  if (cur !== 3 && cur !== 4) dragYaw *= .94; // hand spin eases back out after the tint/wrap scenes
-  const a = { ...K[cur] }; a.yaw += SPIN[cur] - (cur === 3 || cur === 4 ? TAU * ss(.04, .74, P[cur]) : 0) + dragYaw;
-  const b = { ...K[cur + 1] }; b.yaw += SPIN[cur + 1] + dragYaw;
-  Object.assign(S.cam, mixKey(a, b, ss(holdFrom, 1, P[cur])));
-  if (window.__view) Object.assign(S.cam, window.__view);
+  // scrubbed scenes: progress through the pinned section → frame index
+  for (const m of media) {
+    const p = clamp((y - m.top) / Math.max(1, m.h - vh));
+    m.prog = p;
+    if (!m.near || (reduce && !m.role)) continue;   // reduced motion: scroll scenes keep their single still
+    let s = m.s, f;
+    if (m.name === 'arrival') f = lerp(0, .3, arrivalIntro.v) + .7 * p;
+    else if (m.role === 'tint') {
+      // entering the section plays the film from clear to 35% once, until a shade is tapped
+      if (!tint.picked && !reduce) tint.f = tintFrame(35) * ss(.02, .3, p);
+      f = tint.f / Math.max(1, s.n - 1);
+    } else if (m.role === 'wrap') { s = seq(wrap.clip); f = wrap.f / Math.max(1, s.n - 1); }
+    else f = p;
+    m.target = f * (s.n - 1);
+    // a little easing on top of the scroll so frame steps never judder on a wheel or a fast flick
+    m.f = m.role ? m.target : m.f + (m.target - m.f) * .35;
+    m.p.draw(s, m.f);
+  }
 
-  // wash
+  // wash steps
   const pw = P[1];
-  S.dirt = ss(0, .12, pw); S.foam = ss(.13, .4, pw); S.rinse = lerp(3.2, -3.2, ss(.45, .8, pw));
-  S.sweep = pw > .8 && pw < 1 ? (pw - .8) / .2 : -1;
-  if (window.__dirt != null) { S.dirt = window.__dirt; S.foam = 0; S.rinse = 3.2; }
   steps.forEach(li => li.classList.toggle('on', pw >= +li.dataset.at));
 
-  // interior
-  const pi = P[2]; S.interior = ss(.05, .2, pi) * (1 - ss(.8, .95, pi)); S.steam = S.interior;
-  let glass = lerp(.68, .1, S.interior);
+  // tint readout follows the film
+  const vltShown = vltAt(tint.f);
+  if ($('#vltNum').textContent !== String(vltShown)) { $('#vltNum').textContent = vltShown; if (!tint.picked) chipOn(VLTS.includes(vltShown) ? vltShown : -1); }
 
-  // tint
-  // the shade only changes when a chip is tapped, so scrolling to orbit the car never swaps it
-  const vlt = pickVlt;
-  if (cur >= 3) glass = vltToOpacity(vlt);
-  if (cur === 3 && R[3] < 0) glass = vltToOpacity(70);
-  glassSm += (glass - glassSm) * .12; S.glass = glassSm;
-  S.cabin += ((cur === 3 && R[3] > -.2 ? 1 : 0) - S.cabin) * .08;
-  const vltShown = cur >= 3 ? vlt : 70;
-  if ($('#vltNum').textContent !== String(vltShown)) { $('#vltNum').textContent = vltShown; $$('.vlt .chip').forEach(c => c.classList.toggle('on', +c.dataset.vlt === vltShown)); }
-
-  // wrap: the picked color holds for the whole orbit; outside the scene the car is back in Fuerza Red
-  const seg = cur !== 4 ? -1 : pickWrap;
-  if (seg !== wrapSeg) { wrapSeg = seg; applyWrap(seg); }
-
-  // ppf
-  const pf = P[5];
-  S.scan = lerp(2.6, -2.6, ss(.06, .5, pf)); S.scanOn = ss(.02, .08, pf) * (1 - ss(.5, .6, pf)); S.film = ss(.06, .25, pf);
-  S.rocks = ss(.5, .58, pf) * (1 - ss(.94, 1, pf));
+  // correction: before/after tags trade places as the light sweeps the panel
+  if (M.correction) { const c = M.correction.prog; tags.before.style.opacity = 1 - ss(.35, .55, c); tags.after.style.opacity = ss(.55, .75, c); }
 
   // panels fade with their scene
   panels.forEach((p, i) => { if (!p) return; const r = R[i]; const o = ss(-.35, .02, r) * (1 - ss(.84, .97, r)); p.style.opacity = o; p.style.transform = `translateY(${(1 - o) * 30}px)`; });
   dots.forEach((d, i) => d.classList.toggle('on', i === cur));
 
-  // stage on/off, HUD
-  const covered = solidTop - y <= 0;
-  S.active = !covered;
-  document.body.classList.toggle('past-showcase', y > solidTop - vh * .6);
+  // HUD
+  const showcaseEnd = offs[offs.length - 1].top + offs[offs.length - 1].h;
+  document.body.classList.toggle('past-showcase', y > showcaseEnd - vh * .6);
   document.body.classList.toggle('in-hero', cur === 0 && P[0] < .6);
   const read = [
     'GLOSS 98 GU · PAINT 0 DEFECTS',
-    pw < .13 ? 'ROAD FILM DETECTED' : pw < .45 ? `FOAM ${Math.round(S.foam * 100)}% · pH 7.0` : pw < .8 ? `RINSE ${Math.round(ss(.45, .8, pw) * 100)}% · DEIONIZED` : 'SPOT-FREE · DRY',
-    `STEAM ${Math.round(S.steam * 100)}% · 110 °C`,
+    pw < .13 ? 'ROAD FILM DETECTED' : pw < .45 ? `FOAM ${Math.round(ss(.13, .4, pw) * 100)}% · pH 7.0` : pw < .8 ? `RINSE ${Math.round(ss(.45, .8, pw) * 100)}% · DEIONIZED` : 'SPOT-FREE · DRY',
+    `STEAM ${Math.round(ss(.05, .2, P[2]) * (1 - ss(.8, .95, P[2])) * 100)}% · 110 °C`,
     `VLT ${vltShown}% · UV BLOCK 99%`,
-    `WRAP ${seg >= 0 ? COLORS[seg].name.toUpperCase() : '—'}`,
-    pf < .5 ? `FILM COVERAGE ${Math.round(ss(.06, .5, pf) * 100)}% · 8 MIL` : 'IMPACTS ABSORBED · PAINT INTACT',
+    `WRAP ${wrap.pick >= 0 ? COLORS[wrap.pick].name.toUpperCase() : '—'}`,
+    P[5] < .5 ? `FILM COVERAGE ${Math.round(ss(.06, .5, P[5]) * 100)}% · 8 MIL` : 'IMPACTS ABSORBED · PAINT INTACT',
   ][cur];
   const status = ['SHOWROOM READY', 'WASH CYCLE', 'CABIN DETAIL', 'FILM SELECTION', 'VINYL APPLICATION', 'FILM INSTALLED'][cur];
   const key = cur + read + status;
@@ -194,31 +206,39 @@ gsap.ticker.add(tick);
 
 // ?debug → tiny on-screen readout for diagnosing on a real phone
 if (/[?&]debug\b/.test(location.search)) {
-  const d = document.createElement('pre'), lost = { v: false };
+  const d = document.createElement('pre');
   d.style.cssText = 'position:fixed;left:8px;top:80px;z-index:999;margin:0;padding:6px 8px;font:11px/1.35 ui-monospace,monospace;color:#0f0;background:rgba(0,0,0,.75);pointer-events:none';
-  document.body.appendChild(d); gl.addEventListener('webglcontextlost', () => (lost.v = true));
-  gsap.ticker.add(() => { d.textContent = `y ${Math.round(scrollY)} lenis ${lenis ? Math.round(lenis.animatedScroll) : '-'}\nvh ${innerHeight} solidTop ${Math.round(solidTop)}\nactive ${S.active} stage ${!!stage} glLost ${lost.v}\nmobile ${mobile} yaw ${S.cam.yaw.toFixed(2)}`; });
+  document.body.appendChild(d);
+  let frames = 0, fps = 0, t0 = performance.now();
+  gsap.ticker.add(() => {
+    frames++; const now = performance.now(); if (now - t0 > 500) { fps = Math.round(frames * 1000 / (now - t0)); frames = 0; t0 = now; }
+    d.textContent = `fps ${fps}  y ${Math.round(scrollY)}  set ${SMALL ? 'mobile' : 'desktop'}\n` + media.filter(m => m.near).map(m => `${m.name} f${Math.round(m.f)} p${(m.prog || 0).toFixed(2)} loaded ${m.s.imgs.filter(i => i && i.ok).length}/${m.s.n}`).join('\n');
+  });
 }
 
 /* ---------------- reveals ---------------- */
+// masked text: each word slides up out of an overflow-hidden line (transform only), expo.out, 80 ms apart
 $$('[data-split]').forEach(el => {
   if (el.closest('.hero')) return;
   const w = FX.split(el);
-  gsap.from(w, { yPercent: 110, duration: 1.1, stagger: .06, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 88%' } });
+  if (reduce) return;
+  gsap.from(w, { yPercent: 110, duration: 1.1, stagger: .08, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 88%' } });
 });
-$$('.block__lede, .compare, .compare__legend, .heal__pad, .heal__copy .note, .form, .contact').forEach(el =>
-  gsap.from(el, { y: 50, autoAlpha: 0, duration: 1.1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 90%' } }));
-gsap.from('.card', { y: 80, autoAlpha: 0, rotateX: -12, duration: 1.1, stagger: .09, ease: 'power3.out', scrollTrigger: { trigger: '.cards', start: 'top 85%' } });
-gsap.from('.tier', { y: 90, autoAlpha: 0, duration: 1.1, stagger: .12, ease: 'power3.out', scrollTrigger: { trigger: '.tiers', start: 'top 85%' } });
-gsap.from('.flow li', { y: 40, autoAlpha: 0, duration: 1, stagger: .15, ease: 'power3.out', scrollTrigger: { trigger: '.flow', start: 'top 85%' } });
-gsap.fromTo('.flow', { '--flow': 0 }, { '--flow': 1, ease: 'none', scrollTrigger: { trigger: '.flow', start: 'top 80%', end: 'bottom 60%', scrub: true } });
-gsap.to('.marquee__track', { x: () => -innerWidth * .25, ease: 'none', scrollTrigger: { trigger: '.marquee', start: 'top bottom', end: 'bottom top', scrub: true } });
-gsap.from('.foot__big', { yPercent: 40, scale: .9, ease: 'none', scrollTrigger: { trigger: '.foot', start: 'top bottom', end: 'bottom bottom', scrub: true } });
-$$('[data-scramble]').forEach(el => { if (!el.closest('.hero')) ScrollTrigger.create({ trigger: el, start: 'top 90%', once: true, onEnter: () => FX.scramble(el) }); });
-$$('.block .eyebrow').forEach(el => ScrollTrigger.create({ trigger: el, start: 'top 90%', once: true, onEnter: () => FX.scramble(el, .8) }));
+if (!reduce) {
+  $$('.block__lede, .compare__legend, .heal__pad, .heal__copy .note, .form, .contact').forEach(el =>
+    gsap.from(el, { y: 50, autoAlpha: 0, duration: 1.1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 90%' } }));
+  gsap.from('.card', { y: 80, autoAlpha: 0, rotateX: -12, duration: 1.1, stagger: .09, ease: 'power3.out', scrollTrigger: { trigger: '.cards', start: 'top 85%' } });
+  gsap.from('.tier', { y: 90, autoAlpha: 0, duration: 1.1, stagger: .12, ease: 'power3.out', scrollTrigger: { trigger: '.tiers', start: 'top 85%' } });
+  gsap.from('.flow li', { y: 40, autoAlpha: 0, duration: 1, stagger: .15, ease: 'power3.out', scrollTrigger: { trigger: '.flow', start: 'top 85%' } });
+  gsap.fromTo('.flow', { '--flow': 0 }, { '--flow': 1, ease: 'none', scrollTrigger: { trigger: '.flow', start: 'top 80%', end: 'bottom 60%', scrub: true } });
+  gsap.to('.marquee__track', { x: () => -innerWidth * .25, ease: 'none', scrollTrigger: { trigger: '.marquee', start: 'top bottom', end: 'bottom top', scrub: true } });
+  gsap.from('.foot__big', { yPercent: 40, scale: .9, ease: 'none', scrollTrigger: { trigger: '.foot', start: 'top bottom', end: 'bottom bottom', scrub: true } });
+  $$('[data-scramble]').forEach(el => { if (!el.closest('.hero')) ScrollTrigger.create({ trigger: el, start: 'top 90%', once: true, onEnter: () => FX.scramble(el) }); });
+  $$('.block .eyebrow').forEach(el => ScrollTrigger.create({ trigger: el, start: 'top 90%', once: true, onEnter: () => FX.scramble(el, .8) }));
+}
 $$('[data-count]').forEach(el => {
   const end = +el.dataset.count, dec = +(el.dataset.dec || 0), suf = el.dataset.suffix || '';
-  ScrollTrigger.create({ trigger: el, start: 'top 95%', once: true, onEnter: () => { const o = { v: 0 }; gsap.to(o, { v: end, duration: 1.6, ease: 'power3.out', onUpdate: () => (el.textContent = o.v.toFixed(dec) + suf) }); } });
+  ScrollTrigger.create({ trigger: el, start: 'top 95%', once: true, onEnter: () => { const o = { v: 0 }; gsap.to(o, { v: end, duration: reduce ? 0 : 1.6, ease: 'power3.out', onUpdate: () => (el.textContent = o.v.toFixed(dec) + suf) }); } });
 });
 
 /* ---------------- nav menu ---------------- */

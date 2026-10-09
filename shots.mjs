@@ -3,7 +3,7 @@ const W = +process.env.W || 1440, H = +process.env.H || 900, list = (process.arg
 const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-angle=metal', '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] });
 const p = await b.newPage();
 import fs from 'node:fs'; import path from 'node:path';
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.jpg': 'image/jpeg' };
 await p.setRequestInterception(true);
 p.on('request', req => { const u = new URL(req.url()); if (u.host !== 'fuerza.test') return req.continue();
   let f = path.join(process.cwd(), decodeURIComponent(u.pathname)); if (f.endsWith('/')) f += 'index.html';

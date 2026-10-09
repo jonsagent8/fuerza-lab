@@ -61,7 +61,7 @@ export function bubbles(canvas) {
 }
 
 /* ---------------- custom cursor ---------------- */
-export function cursor(el, label, gl) {
+export function cursor(el, label) {
   document.documentElement.classList.add('has-cursor');
   const ring = el.querySelector('.cursor__ring'), dot = el.querySelector('.cursor__dot');
   let x = innerWidth / 2, y = innerHeight / 2, rx = x, ry = y, hoverEl = null;
@@ -80,7 +80,7 @@ export function cursor(el, label, gl) {
     dot.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
     ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%)`;
     label.style.transform = `translate(${rx}px, ${ry}px) translate(-50%, -50%)`;
-    const txt = hoverEl ? (hoverEl.dataset.cursor || '') : (gl && gl.dataset.hover && !document.body.classList.contains('past-showcase') ? 'Polish' : '');
+    const txt = hoverEl ? (hoverEl.dataset.cursor || '') : '';
     const on = !!hoverEl || !!txt;
     el.classList.toggle('is-hover', on);
     if (label.textContent !== txt) label.textContent = txt;
@@ -130,67 +130,6 @@ export function scramble(el, dur = 1.1) {
     el.textContent = [...final].map((ch, i) => (ch === ' ' || ch === '·') ? ch : (i / final.length < k ? ch : chars[(Math.random() * chars.length) | 0])).join('');
     if (k < 1) requestAnimationFrame(step); else el.textContent = final;
   })(start);
-}
-
-/* ---------------- swirl marks before/after ---------------- */
-export function compare(wrap, canvas, handle) {
-  const g = canvas.getContext('2d'); let size, pos = .5, drag = false, vis = false, dirty = true, idle = 0;
-  const light = { x: .42, y: .36, tx: .42, ty: .36 };
-  const SCR = Array.from({ length: 1100 }, () => ({ x: Math.random(), y: Math.random(), len: rnd(18, 90), w: rnd(.5, 1.1), holo: Math.random() < .3 }));
-  const flake = document.createElement('canvas'); flake.width = flake.height = 256;
-  { const f = flake.getContext('2d'), d = f.createImageData(256, 256); for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() < .04 ? rnd(80, 200) : rnd(0, 18); d.data[i] = v * .8; d.data[i + 1] = v * .9; d.data[i + 2] = v; d.data[i + 3] = 40; } f.putImageData(d, 0, 0); }
-  const resize = () => { size = fitCanvas(canvas); g.setTransform(size.dpr, 0, 0, size.dpr, 0, 0); dirty = true; };
-  resize(); window.addEventListener('resize', resize);
-  const setPos = cx => { const r = wrap.getBoundingClientRect(); pos = clamp((cx - r.left) / r.width, .02, .98); handle.style.setProperty('--x', pos * 100 + '%'); dirty = true; };
-  wrap.addEventListener('pointerdown', e => { drag = true; wrap.setPointerCapture(e.pointerId); setPos(e.clientX); });
-  wrap.addEventListener('pointerup', () => (drag = false)); wrap.addEventListener('pointercancel', () => (drag = false));
-  wrap.addEventListener('pointermove', e => {
-    if (drag) setPos(e.clientX);
-    const r = wrap.getBoundingClientRect(); light.tx = (e.clientX - r.left) / r.width; light.ty = (e.clientY - r.top) / r.height; idle = 0;
-  });
-  handle.tabIndex = 0; handle.setAttribute('role', 'slider'); handle.setAttribute('aria-label', 'Before and after divider');
-  handle.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { pos = clamp(pos + (e.key === 'ArrowLeft' ? -.04 : .04), .02, .98); handle.style.setProperty('--x', pos * 100 + '%'); dirty = true; e.preventDefault(); } });
-  whenVisible(wrap, v => (vis = v));
-
-  function paint(swirled) {
-    const { w, h } = size, lx = light.x * w, ly = light.y * h;
-    const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#141416'); bg.addColorStop(.55, '#09090a'); bg.addColorStop(1, '#18181b');
-    g.fillStyle = bg; g.fillRect(0, 0, w, h);
-    g.globalAlpha = swirled ? .5 : .9; g.fillStyle = g.createPattern(flake, 'repeat'); g.fillRect(0, 0, w, h); g.globalAlpha = 1;
-    // horizon reflection of the studio wall
-    const hz = g.createLinearGradient(0, h * .58, 0, h * .7); hz.addColorStop(0, 'rgba(120,150,210,0)'); hz.addColorStop(.5, swirled ? 'rgba(120,150,210,.10)' : 'rgba(150,180,240,.22)'); hz.addColorStop(1, 'rgba(120,150,210,0)');
-    g.fillStyle = hz; g.fillRect(0, h * .58, w, h * .12);
-    // softbox
-    const bw = w * .2, bh = h * .14;
-    const gl = g.createRadialGradient(lx, ly, 0, lx, ly, w * (swirled ? .34 : .22)); gl.addColorStop(0, swirled ? 'rgba(200,215,255,.28)' : 'rgba(200,215,255,.14)'); gl.addColorStop(1, 'rgba(200,215,255,0)');
-    g.fillStyle = gl; g.fillRect(0, 0, w, h);
-    if (swirled) { for (let i = 4; i > 0; i--) { g.fillStyle = `rgba(235,240,255,${.07})`; g.beginPath(); g.roundRect(lx - bw / 2 - i * 6, ly - bh / 2 - i * 6, bw + i * 12, bh + i * 12, 14 + i * 6); g.fill(); } }
-    g.fillStyle = swirled ? 'rgba(240,244,255,.75)' : '#f6f8ff'; g.beginPath(); g.roundRect(lx - bw / 2, ly - bh / 2, bw, bh, 10); g.fill();
-    if (!swirled) { g.strokeStyle = 'rgba(94,242,255,.5)'; g.lineWidth = 1; g.beginPath(); g.roundRect(lx - bw / 2 - 3, ly - bh / 2 - 3, bw + 6, bh + 6, 12); g.stroke(); }
-    if (swirled) {
-      for (const s of SCR) {
-        const x = s.x * w, y = s.y * h, dx = x - lx, dy = y - ly, d = Math.hypot(dx, dy); if (d < 30) continue;
-        const v = Math.exp(-d / (w * .3)); if (v < .03) continue;
-        const a = Math.atan2(dy, dx), span = s.len / d;
-        g.strokeStyle = s.holo ? `hsla(${(a * 57.3 + 360) % 360},80%,78%,${.75 * v})` : `rgba(255,255,255,${.8 * v})`;
-        g.lineWidth = s.w; g.beginPath(); g.arc(lx, ly, d, a - span / 2, a + span / 2); g.stroke();
-      }
-    }
-  }
-  let t = 0;
-  (function loop() {
-    requestAnimationFrame(loop);
-    if (!vis) return;
-    t += .016; idle += .016;
-    if (idle > 2.5) { light.tx = .5 + Math.cos(t * .35) * .22; light.ty = .38 + Math.sin(t * .5) * .12; }
-    const nx = light.x + (light.tx - light.x) * .08, ny = light.y + (light.ty - light.y) * .08;
-    if (Math.abs(nx - light.x) + Math.abs(ny - light.y) > .0004) dirty = true;
-    light.x = nx; light.y = ny;
-    if (!dirty) return; dirty = false;
-    const { w, h } = size;
-    paint(false);
-    g.save(); g.beginPath(); g.rect(0, 0, w * pos, h); g.clip(); paint(true); g.restore();
-  })();
 }
 
 /* ---------------- self-healing film scratch pad ---------------- */
