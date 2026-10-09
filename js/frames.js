@@ -43,33 +43,47 @@ class Seq {
   }
 }
 
-// One canvas per scene. draw(f) only repaints when the shown frame or the canvas size changes.
-export class Painter {
-  // fit 'width' (portrait screens only): show the whole car across the width instead of cropping to the doors
-  constructor(canvas, { focusX = .5, fit = 'cover', y = .4 } = {}) {
-    this.c = canvas; this.g = canvas.getContext('2d', { alpha: false }); this.focusX = focusX; this.fit = fit; this.y = y; this.shown = null; this.seq = null;
+// One fixed full-screen canvas for the whole page. render() draws one clip, or two while one dissolves into the next.
+// layer: { s, f, alpha, scale, fit, y, focusX }. fit 'width' (portrait screens only) shows the whole car across the
+// width instead of cropping to the doors.
+export class Stage {
+  constructor(canvas) {
+    this.c = canvas; this.g = canvas.getContext('2d', { alpha: false });
     this.resize(); addEventListener('resize', () => this.resize());
   }
   resize() {
-    const r = this.c.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, SMALL ? 2 : 1.5);
-    const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
-    if (w === this.c.width && h === this.c.height) return;
-    this.c.width = w; this.c.height = h; this.shown = null;
-    if (this.seq) this.draw(this.seq, this.lastF);   // a resized canvas is cleared, so put the frame back
+    const dpr = Math.min(devicePixelRatio || 1, SMALL ? 2 : 1.5);
+    const w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
+    if (w !== this.c.width || h !== this.c.height) { this.c.width = w; this.c.height = h; }
   }
-  draw(s, f) {
-    this.seq = s; this.lastF = f;
-    const im = s.nearest(f); if (!im || im === this.shown) return;
-    this.shown = im;
-    const { width: cw, height: ch } = this.c, iw = im.naturalWidth, ih = im.naturalHeight;
-    const portrait = ch > cw;
-    if (this.fit === 'width' && portrait) {
-      const k = cw / iw * 1.18, w = iw * k, h = ih * k;
-      this.g.fillStyle = '#060607'; this.g.fillRect(0, 0, cw, ch);
-      this.g.drawImage(im, (cw - w) / 2, (ch - h) * this.y, w, h);
-      return;
+  render(layers, { dx = 0, dy = 0, flare = 0 } = {}) {
+    const g = this.g, { width: cw, height: ch } = this.c;
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#060607'; g.fillRect(0, 0, cw, ch);
+    for (const L of layers) {
+      g.fillStyle = '#060607';
+      const im = L.s.nearest(L.f); if (!im || L.alpha <= 0) continue;
+      const iw = im.naturalWidth, ih = im.naturalHeight, byWidth = L.fit === 'width' && ch > cw;
+      const k = (byWidth ? cw / iw * 1.18 : Math.max(cw / iw, ch / ih)) * (L.scale || 1), w = iw * k, h = ih * k;
+      const x = byWidth ? (cw - w) / 2 : (cw - w) * (L.focusX ?? .5), y = byWidth ? (ch - h) * (L.y ?? .4) : (ch - h) / 2;
+      g.globalAlpha = Math.min(1, L.alpha);
+      if (byWidth) g.fillRect(0, 0, cw, ch);   // letterbox in bay-black, so a dissolve fades the whole screen, not a box
+      g.drawImage(im, x + dx * cw, y + dy * ch, w, h);
+      if (byWidth) {                          // feather the top and bottom edges into the letterbox
+        const e = h * .14, X = x + dx * cw, Y = y + dy * ch;
+        for (const [y0, y1] of [[Y, Y + e], [Y + h, Y + h - e]]) {
+          const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, '#060607'); gr.addColorStop(1, 'rgba(6,6,7,0)');
+          g.fillStyle = gr; g.fillRect(X, Math.min(y0, y1), w, e);
+        }
+        g.fillStyle = '#060607';
+      }
     }
-    const k = Math.max(cw / iw, ch / ih), w = iw * k, h = ih * k;   // object-fit: cover
-    this.g.drawImage(im, (cw - w) * this.focusX, (ch - h) / 2, w, h);
+    if (flare > .01) {   // a soft bay-light flare at the middle of a dissolve
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = flare;
+      const r = g.createRadialGradient(cw * .55, ch * .35, 0, cw * .55, ch * .35, Math.max(cw, ch) * .7);
+      r.addColorStop(0, 'rgba(235,240,255,.9)'); r.addColorStop(.35, 'rgba(255,60,70,.25)'); r.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = r; g.fillRect(0, 0, cw, ch);
+    }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   }
 }

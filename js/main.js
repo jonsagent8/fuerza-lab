@@ -1,5 +1,5 @@
 import * as FX from './fx.js';
-import { seq, Painter, SMALL } from './frames.js';
+import { seq, Stage, SMALL } from './frames.js';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -32,22 +32,26 @@ FX.magnetic(finePointer ? $$('.magnetic') : []);
 FX.tilt($$('.tilt'));
 FX.heal($('#healPad'), $('#healCanvas'), $('#healTemp'));
 
-/* ---------------- video scenes: Higgsfield clips as scroll-scrubbed frame sequences ---------------- */
-// every [data-media] section holds a sticky full-bleed canvas. `still` is the frame shown with reduced motion.
-const media = $$('[data-media]').map(el => {
-  const name = el.dataset.media, s = seq(name), canvas = $('.media canvas', el);
-  return { el, name, role: el.dataset.role || '', s, p: new Painter(canvas, { focusX: +(el.dataset.focus || .5), fit: el.dataset.fit || 'cover', y: +(el.dataset.y || .4) }), f: 0, target: 0, still: +(el.dataset.still || 1), near: false, top: 0, h: 1 };
-});
+/* ---------------- video: one fixed stage plays every Higgsfield clip, scrubbed by scroll ---------------- */
+// [data-media] sections are windows onto the stage. Neighbouring scenes dissolve into each other instead of cutting.
+// `still` is the frame shown with reduced motion.
+const stage = new Stage($('#stage'));
+const media = $$('[data-media]').map(el => ({
+  el, name: el.dataset.media, role: el.dataset.role || '', s: seq(el.dataset.media),
+  fit: el.dataset.fit || 'cover', y: +(el.dataset.y || .4), focusX: +(el.dataset.focus || .5),
+  f: 0, still: +(el.dataset.still || 1), top: 0, h: 1, prog: 0,
+}));
 const M = Object.fromEntries(media.map(m => [m.role || m.name, m]));
 const WRAPS = ['wrap-red', 'wrap-graphite', 'wrap-pearl', 'wrap-chrome', 'wrap-matteblack'];
 
-// lazy-load a scene's frames once it is within one viewport of the screen; frame 0 goes up straight away as the poster
-media.forEach(m => m.s.poster().then(() => m.p.draw(m.s, reduce ? m.still * (m.s.n - 1) : m.f)));
+// lazy-load a scene's frames once it is within one viewport of the screen; frame 0 is fetched up front as the poster
+media.forEach(m => m.s.poster());
 const io = new IntersectionObserver(es => es.forEach(e => {
-  const m = media.find(x => x.el === e.target); m.near = e.isIntersecting;
-  if (e.isIntersecting && !reduce && m.role !== 'wrap') m.s.load();
-  if (e.isIntersecting && reduce && m.role === 'tint') m.s.img(Math.round(tint.f));
-  if (e.isIntersecting && reduce && !m.role) m.s.img(Math.round(m.still * (m.s.n - 1))).done.then(() => m.p.draw(m.s, m.still * (m.s.n - 1)));
+  if (!e.isIntersecting) return;
+  const m = media.find(x => x.el === e.target);
+  if (!reduce && m.role !== 'wrap') m.s.load();
+  else if (reduce && m.role === 'tint') m.s.img(Math.round(tint.f));
+  else if (reduce && !m.role) m.s.img(Math.round(m.still * (m.s.n - 1)));
 }), { rootMargin: '100% 0px' });
 media.forEach(m => io.observe(m.el));
 
@@ -129,12 +133,24 @@ function measure() {
   const top = el => el.getBoundingClientRect().top + scrollY;
   offs = scenes.map(el => ({ top: top(el), h: el.offsetHeight }));
   media.forEach(m => { m.top = top(m.el); m.h = m.el.offsetHeight; });
+  // scenes closer than a screen apart dissolve into each other over BLEND screens of scroll, ending where the next one pins;
+  // each clip finishes scrubbing just before its dissolve starts
+  const vh = innerHeight;
+  media.forEach((m, i) => {
+    const n = media[i + 1];
+    m.next = n && n.top - (m.top + m.h) < vh ? n : null;
+    if (n) n.prevAdj = !!m.next;
+    m.scrubEnd = Math.max(m.top + vh * .5, m.next ? m.next.top - BLEND * vh : m.top + m.h - vh);
+  });
 }
+const BLEND = 1.4;
 // on touch devices the URL bar showing/hiding fires height-only resizes mid-scroll; re-measuring then makes the page jump
 let lastW = innerWidth;
 measure(); window.addEventListener('resize', () => { measure(); if (mobile && innerWidth === lastW) return; lastW = innerWidth; ScrollTrigger.refresh(); }); window.addEventListener('load', measure);
 
 let hudCache = '';
+const par = { x: 0, y: 0 }, S = { mx: 0, my: 0 };
+addEventListener('pointermove', e => { if (e.pointerType === 'mouse') { S.mx = e.clientX / innerWidth * 2 - 1; S.my = e.clientY / innerHeight * 2 - 1; } }, { passive: true });
 const dots = $$('#dots a'), steps = $$('.steps li'), panels = scenes.map(s => $('.panel', s));
 const hud = { scene: $('#hudScene'), status: $('#hudStatus'), read: $('#hudRead') };
 const NAMES = ['ARRIVAL', 'HAND WASH', 'INTERIOR', 'WINDOW TINT', 'COLOR WRAP', 'PAINT PROTECTION'];
@@ -148,23 +164,36 @@ function tick() {
   const R = offs.map(o => (y - o.top) / Math.max(1, o.h - vh)), P = R.map(r => clamp(r));
   let cur = 0; offs.forEach((o, i) => { if (y >= o.top - 2) cur = i; });
 
-  // scrubbed scenes: progress through the pinned section → frame index
+  // stage: frame targets for every clip, then which one (or two, mid-dissolve) is on screen
+  const dt = gsap.ticker.deltaRatio(60) / 60, ease = 1 - Math.exp(-dt * 9), now = gsap.ticker.time;
   for (const m of media) {
-    const p = clamp((y - m.top) / Math.max(1, m.h - vh));
-    m.prog = p;
-    if (!m.near || (reduce && !m.role)) continue;   // reduced motion: scroll scenes keep their single still
+    const p = clamp((y - m.top) / Math.max(1, m.scrubEnd - m.top));
+    m.prog = clamp((y - m.top) / Math.max(1, m.h - vh));
     let s = m.s, f;
     if (m.name === 'arrival') f = lerp(0, .3, arrivalIntro.v) + .7 * p;
     else if (m.role === 'tint') {
       // entering the section plays the film from clear to 35% once, until a shade is tapped
-      if (!tint.picked && !reduce) tint.f = tintFrame(35) * ss(.02, .3, p);
+      if (!tint.picked && !reduce) tint.f = tintFrame(35) * ss(.02, .3, m.prog);
       f = tint.f / Math.max(1, s.n - 1);
     } else if (m.role === 'wrap') { s = seq(wrap.clip); f = wrap.f / Math.max(1, s.n - 1); }
-    else f = p;
-    m.target = f * (s.n - 1);
-    // a little easing on top of the scroll so frame steps never judder on a wheel or a fast flick
-    m.f = m.role ? m.target : m.f + (m.target - m.f) * .35;
-    m.p.draw(s, m.f);
+    else f = reduce ? m.still : p;
+    m.cur = s;
+    const target = f * (s.n - 1);
+    // the shown frame chases the scroll position, so the clip keeps playing out after the wheel stops instead of freezing
+    m.f = m.role || reduce ? target : m.f + (target - m.f) * ease;
+  }
+  let ci = -1; media.forEach((m, k) => { if (y >= m.top - (m.prevAdj ? BLEND : 1) * vh) ci = k; });
+  const A = media[ci], visible = A && y < A.top + A.h;
+  if (visible) {
+    const P0 = media[ci - 1], t = A.prevAdj && y < A.top ? ss(A.top - BLEND * vh, A.top, y) : 1;
+    const layer = (m, alpha, scale) => ({ s: m.cur, f: m.f, alpha, scale, fit: m.fit, y: m.y, focusX: m.focusX });
+    const breathe = reduce ? 1 : 1.025 + .012 * Math.sin(now * .35);
+    par.x += ((reduce ? 0 : S.mx * -.008) - par.x) * ease * .5; par.y += ((reduce ? 0 : S.my * -.006) - par.y) * ease * .5;
+    let layers;
+    if (reduce) layers = [layer(t < .5 ? P0 : A, 1, 1)];
+    else if (t < 1) layers = [layer(P0, 1, breathe * (1 + .07 * t)), layer(A, t, breathe * (1.07 - .07 * t))];   // push through into the next clip
+    else layers = [layer(A, 1, breathe)];
+    stage.render(layers, { dx: par.x, dy: par.y, flare: reduce || t >= 1 ? 0 : .22 * Math.sin(Math.PI * t) });
   }
 
   // wash steps
@@ -212,7 +241,7 @@ if (/[?&]debug\b/.test(location.search)) {
   let frames = 0, fps = 0, t0 = performance.now();
   gsap.ticker.add(() => {
     frames++; const now = performance.now(); if (now - t0 > 500) { fps = Math.round(frames * 1000 / (now - t0)); frames = 0; t0 = now; }
-    d.textContent = `fps ${fps}  y ${Math.round(scrollY)}  set ${SMALL ? 'mobile' : 'desktop'}\n` + media.filter(m => m.near).map(m => `${m.name} f${Math.round(m.f)} p${(m.prog || 0).toFixed(2)} loaded ${m.s.imgs.filter(i => i && i.ok).length}/${m.s.n}`).join('\n');
+    d.textContent = `fps ${fps}  y ${Math.round(scrollY)}  set ${SMALL ? 'mobile' : 'desktop'}\n` + media.filter(m => m.prog > 0 && m.prog < 1).map(m => `${m.name} f${Math.round(m.f)} p${(m.prog || 0).toFixed(2)} loaded ${m.s.imgs.filter(i => i && i.ok).length}/${m.s.n}`).join('\n');
   });
 }
 
