@@ -34,6 +34,19 @@
 
 <canvas id="stage" aria-hidden="true"></canvas>
 <div class="stage-shade" aria-hidden="true"></div>
+<!-- hero studio lighting (js/hero-fx.js). .hfx__render is the slot for a high-res still: see data-render on the hero section -->
+<div class="hfx" id="heroFx" aria-hidden="true">
+  <div class="hfx__plate">
+    <img class="hfx__render" alt="" hidden>
+    <div class="hfx__back">
+      <div class="hfx__dim"></div>
+      <div class="hfx__track"><div class="hfx__band"></div></div>
+      <div class="hfx__frame"><div class="hfx__shadow"></div></div>
+    </div>
+    <div class="hfx__paint"><div class="hfx__track"><div class="hfx__hl"></div></div></div>
+  </div>
+  <div class="hfx__vignette"></div>
+</div>
 <canvas id="bubbles" aria-hidden="true"></canvas>
 <div class="cursor" id="cursor" aria-hidden="true"><span class="cursor__ring"></span><span class="cursor__dot"></span><span class="cursor__label" id="cursorLabel"></span></div>
 <div class="progress" aria-hidden="true"><span id="progress"></span></div>
@@ -59,7 +72,8 @@
 
 <main id="top">
   <!-- ============ SHOWCASE (Higgsfield clips on the fixed #stage, scrubbed by scroll) ============ -->
-  <section class="scene hero" data-scene="0" data-media="arrival" data-still="1">
+  <!-- high-res car slot: add data-render="assets/hero/car-render.webp" (16:9, same framing as assets/frames/arrival/desktop/0097.webp) -->
+  <section class="scene hero" data-scene="0" data-media="arrival" data-still="1" data-fit="width" data-y=".92" data-focus=".15">
     <div class="hero__inner">
       <p class="eyebrow mono" data-scramble>CLEAN IS A STANDARD.</p>
       <h1 class="hero__title"><span class="line" data-split>Shine is</span><span class="line film-text" data-split>fuerza.</span></h1>

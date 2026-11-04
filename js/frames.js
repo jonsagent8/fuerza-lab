@@ -69,6 +69,7 @@ export class Stage {
       g.globalAlpha = Math.min(1, L.alpha);
       if (byWidth) g.fillRect(0, 0, cw, ch);   // letterbox in bay-black, so a dissolve fades the whole screen, not a box
       g.drawImage(im, x + dx * cw, y + dy * ch, w, h);
+      this.rect = { name: L.s.name, x: (x + dx * cw) / cw * innerWidth, y: (y + dy * ch) / ch * innerHeight, w: w / cw * innerWidth, h: h / ch * innerHeight };   // CSS px, for overlays tracking the picture
       if (byWidth) {                          // feather the top and bottom edges into the letterbox
         const e = h * .14, X = x + dx * cw, Y = y + dy * ch;
         for (const [y0, y1] of [[Y, Y + e], [Y + h, Y + h - e]]) {

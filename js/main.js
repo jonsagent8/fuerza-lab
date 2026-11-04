@@ -1,5 +1,6 @@
 import * as FX from './fx.js';
 import { seq, Stage, SMALL } from './frames.js';
+import { heroFx } from './hero-fx.js';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -36,6 +37,7 @@ FX.heal($('#healPad'), $('#healCanvas'), $('#healTemp'));
 // [data-media] sections are windows onto the stage. Neighbouring scenes dissolve into each other instead of cutting.
 // `still` is the frame shown with reduced motion.
 const stage = new Stage($('#stage'));
+const updateHeroFx = heroFx($('#heroFx'), $('.hero'));
 const media = $$('[data-media]').map(el => ({
   el, name: el.dataset.media, role: el.dataset.role || '', s: seq(el.dataset.media),
   fit: el.dataset.fit || 'cover', y: +(el.dataset.y || .4), focusX: +(el.dataset.focus || .5),
@@ -170,7 +172,7 @@ function tick() {
     const p = clamp((y - m.top) / Math.max(1, m.scrubEnd - m.top));
     m.prog = clamp((y - m.top) / Math.max(1, m.h - vh));
     let s = m.s, f;
-    if (m.name === 'arrival') f = lerp(0, .3, arrivalIntro.v) + .7 * p;
+    if (m.name === 'arrival') f = lerp(0, .5, arrivalIntro.v) + .5 * p;   // rests on frame 96: paint lit, headlights still off
     else if (m.role === 'tint') {
       // entering the section plays the film from clear to 35% once, until a shade is tapped
       if (!tint.picked && !reduce) tint.f = tintFrame(35) * ss(.02, .3, m.prog);
@@ -194,7 +196,8 @@ function tick() {
     else if (t < 1) layers = [layer(P0, 1, breathe * (1 + .07 * t)), layer(A, t, breathe * (1.07 - .07 * t))];   // push through into the next clip
     else layers = [layer(A, 1, breathe)];
     stage.render(layers, { dx: par.x, dy: par.y, flare: reduce || t >= 1 ? 0 : .22 * Math.sin(Math.PI * t) });
-  }
+    updateHeroFx(A === M.arrival && t >= 1 ? stage.rect : null, A.f);
+  } else updateHeroFx(null, 0);
 
   // wash steps
   const pw = P[1];

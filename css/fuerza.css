@@ -65,3 +65,38 @@
   .process .flow__n { width: 46px; height: 46px; font-size: 15px; grid-row: span 2; }
   .process .flow h3 { margin: 0; font-size: 18px; } .process .flow p { font-size: 14px; }
 }
+
+/* ---------- hero studio lighting: sits on the video stage, under the copy. Only transform and opacity ever animate. ---------- */
+.hfx { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; opacity: 0; visibility: hidden; contain: strict;
+  --sweep-time: 10s; --sweep-ease: cubic-bezier(.45, 0, .55, 1); --sweep-from: -62%; --sweep-to: 62%; --sweep-rest: 13%;
+  --band-w: 42%; --hl-w: 20%; --band-o: .25; --hl-o: .3; }
+.hfx.is-on { visibility: visible; }
+.hfx__plate { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.hfx__back, .hfx__paint { position: absolute; inset: 0; overflow: hidden; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+.hfx__back { -webkit-mask-image: url(../assets/hero/backdrop-mask.webp); mask-image: url(../assets/hero/backdrop-mask.webp); }
+.hfx__paint { -webkit-mask-image: url(../assets/hero/paint-mask.webp); mask-image: url(../assets/hero/paint-mask.webp); }
+/* inner box = the 16:9 video frame, so everything inside uses frame coordinates */
+.hfx__frame, .hfx__render { position: absolute; left: 9.6774%; top: 9.6774%; width: 80.6452%; height: 80.6452%; }
+.hfx__render { object-fit: cover; }
+.hfx__render[hidden] { display: none; }
+/* backdrop stays near-black: the bay is dimmed behind the car, the far floor falls off so the baked reflection fades out */
+.hfx__dim { position: absolute; inset: 0; background:
+  linear-gradient(rgba(5,5,7,.86) 0 22%, rgba(5,5,7,.6) 42%, rgba(5,5,7,.46) 62%, rgba(5,5,7,.68) 80%, rgba(5,5,7,.94) 100%); }
+/* frame coordinates: wider ambient pool, then contact shadows under the rear tire, front tire and bumper */
+.hfx__shadow { position: absolute; inset: 0; background:
+  radial-gradient(5.4% 2% at 84% 66.6%, rgba(0,0,0,.96), rgba(0,0,0,.6) 45%, transparent),
+  radial-gradient(7% 2.5% at 60.3% 79.6%, rgba(0,0,0,.98), rgba(0,0,0,.62) 45%, transparent),
+  radial-gradient(20% 3% at 35% 76%, rgba(0,0,0,.92), rgba(0,0,0,.45) 55%, transparent),
+  radial-gradient(47% 15% at 52% 75%, rgba(0,0,0,.72), rgba(0,0,0,.34) 58%, transparent); }
+/* both tracks run the same keyframes on the same plate from the same start, so the paint highlight stays locked to the band */
+.hfx__track { position: absolute; inset: 0; will-change: transform; animation: hfx-sweep var(--sweep-time) var(--sweep-ease) infinite; }
+.hfx:not(.is-on) .hfx__track { animation-play-state: paused; }
+@keyframes hfx-sweep { from { transform: translate3d(var(--sweep-from), 0, 0); } to { transform: translate3d(var(--sweep-to), 0, 0); } }
+.hfx__band { position: absolute; left: calc(50% - var(--band-w) / 2); top: 0; width: var(--band-w); height: 100%; opacity: var(--band-o); transform: rotate(4deg);
+  background: url(../assets/hero/softbox.webp) center / 100% 100% no-repeat; }
+.hfx__hl { position: absolute; left: calc(50% - var(--hl-w) / 2); top: -16%; width: var(--hl-w); height: 132%; opacity: var(--hl-o); transform: rotate(4deg);
+  background: linear-gradient(90deg, rgba(225,29,37,0), rgba(225,120,130,.24) 18%, rgba(226,236,255,.82) 42%, rgba(240,246,255,1) 50%, rgba(226,236,255,.82) 58%, rgba(225,120,130,.24) 82%, rgba(225,29,37,0)); }
+.hfx__vignette { position: absolute; inset: 0; background: radial-gradient(115% 95% at 58% 50%, transparent 48%, rgba(3,3,5,.42) 78%, rgba(3,3,5,.78) 100%); }
+/* portrait: the car sits below the copy, so the text needs no side scrim over it */
+@media (max-aspect-ratio: 1/1) { .hero__inner { background: none; } }
+@media (prefers-reduced-motion: reduce) { .hfx__track { animation: none; transform: translate3d(var(--sweep-rest), 0, 0); } }

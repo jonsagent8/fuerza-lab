@@ -14,11 +14,17 @@ Static site, no build step. Open it through any web server (or GitHub Pages). GS
 
 ## How the scenes work
 - Each `[data-media]` section has a sticky full-bleed `<canvas>`. Its frames lazy-load once the section is within one viewport; frame 0 is drawn straight away as a poster.
-- Arrival, wash, interior, PPF, correction and finale scrub with scroll. The arrival lights come on by themselves after the loader, then scroll takes over.
+- Arrival, wash, interior, PPF, correction and finale scrub with scroll. The arrival lights come on by themselves after the loader and rest on frame 96, then scroll takes over.
 - Tint: the shade chips tween the frame (70% → early frame, 5% → last). Scrolling in plays clear → 35% once. This clip is built locally from two stills (clear and tinted glass) with a squeegee wipe, so only the glass changes.
 - Wrap: each swatch plays its own clip; Portimao Blue is frame 0 of all of them. A new color peels back to blue first. Frames preload on hover/touch.
 - `prefers-reduced-motion`: one still per scene, no scrubbing, no smooth scroll.
 - `?debug` shows fps and per-scene frame/load state.
+
+## Hero studio lighting (`js/hero-fx.js`, `.hfx` in `css/fuerza.css`, `assets/hero/`)
+- The car is baked into the clip, so "behind the car" comes from a matte (`backdrop-mask.webp`, `paint-mask.webp`) made from frame 97 with macOS Vision (`_hf/vision-mask.swift`, `_hf/hero-fx-build.mjs`). `KEYS` in `hero-fx.js` moves the matte with the car as the clip pushes in.
+- The sweep is one CSS keyframe animation (transform only, 10 s) run on two tracks: the backdrop band and the paint highlight. Tune it with the `--sweep-*`, `--band-*` and `--hl-*` variables on `.hfx`. Reduced motion parks it at `--sweep-rest`.
+- Shadows, floor falloff and vignette are static gradients. The floor reflection itself is the one already in the video; the falloff fades it.
+- High-res slot: export a 16:9 still with the same framing as `assets/frames/arrival/desktop/0097.webp`, save it as `assets/hero/car-render.webp` and add `data-render="assets/hero/car-render.webp"` to the hero section. It shows at rest and hands off to the clip as you scroll. If the framing changes, rebuild the masks from the new image.
 
 ## Still placeholders
 - The Cal.com username goes in `CAL_CONFIG` in `js/main.js`. Event slugs: detailing, window-tint, vinyl-wrap-dropoff, ppf-dropoff.
