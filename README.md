@@ -17,6 +17,7 @@ Static site, no build step. Open it through any web server (or GitHub Pages). GS
 - Arrival, wash, interior, PPF, correction and finale scrub with scroll. The arrival lights come on by themselves after the loader and rest on frame 96, then scroll takes over.
 - Tint: the shade chips tween the frame (70% → early frame, 5% → last). Scrolling in plays clear → 35% once. This clip is built locally from two stills (clear and tinted glass) with a squeegee wipe, so only the glass changes.
 - Wrap: each swatch plays its own clip; Portimao Blue is frame 0 of all of them. A new color peels back to blue first. Frames preload on hover/touch.
+- Between two clip frames, `Stage.render` fades the next frame over the current one, so a slow scroll changes the picture on every screen refresh without any extra downloads.
 - `prefers-reduced-motion`: one still per scene, no scrubbing, no smooth scroll.
 - `?debug` shows fps and per-scene frame/load state.
 

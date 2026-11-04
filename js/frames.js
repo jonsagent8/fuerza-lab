@@ -16,7 +16,9 @@ class Seq {
     let im = this.imgs[i];
     if (!im) {
       im = this.imgs[i] = new Image(); im.decoding = 'async';
-      im.done = new Promise(r => { im.onload = () => { im.ok = true; this.listeners.forEach(f => f(i)); r(); }; im.onerror = r; });
+      // decode before a frame counts as ready, so drawing it never stalls the scroll on a phone
+      const ready = () => { im.ok = true; this.listeners.forEach(f => f(i)); };
+      im.done = new Promise(r => { im.onload = () => (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(ready).then(r); im.onerror = r; });
       im.src = this.src(i);
     }
     return im;
@@ -62,13 +64,17 @@ export class Stage {
     g.fillStyle = '#060607'; g.fillRect(0, 0, cw, ch);
     for (const L of layers) {
       g.fillStyle = '#060607';
-      const im = L.s.nearest(L.f); if (!im || L.alpha <= 0) continue;
+      // between two clip frames, draw the earlier one and fade the next over it; if either isn't in yet, show the closest frame
+      const i0 = Math.floor(L.f), f0 = L.s.imgs[i0], f1 = L.s.imgs[i0 + 1], both = f0 && f0.ok && f1 && f1.ok;
+      const im = both ? f0 : L.s.nearest(L.f); if (!im || L.alpha <= 0) continue;
       const iw = im.naturalWidth, ih = im.naturalHeight, byWidth = L.fit === 'width' && ch > cw;
       const k = (byWidth ? cw / iw * 1.18 : Math.max(cw / iw, ch / ih)) * (L.scale || 1), w = iw * k, h = ih * k;
       const x = byWidth ? (cw - w) / 2 : (cw - w) * (L.focusX ?? .5), y = byWidth ? (ch - h) * (L.y ?? .4) : (ch - h) / 2;
       g.globalAlpha = Math.min(1, L.alpha);
       if (byWidth) g.fillRect(0, 0, cw, ch);   // letterbox in bay-black, so a dissolve fades the whole screen, not a box
       g.drawImage(im, x + dx * cw, y + dy * ch, w, h);
+      const mix = L.f - i0;
+      if (both && mix > .01) { g.globalAlpha = Math.min(1, L.alpha) * mix; g.drawImage(f1, x + dx * cw, y + dy * ch, w, h); g.globalAlpha = Math.min(1, L.alpha); }
       this.rect = { name: L.s.name, x: (x + dx * cw) / cw * innerWidth, y: (y + dy * ch) / ch * innerHeight, w: w / cw * innerWidth, h: h / ch * innerHeight };   // CSS px, for overlays tracking the picture
       if (byWidth) {                          // feather the top and bottom edges into the letterbox
         const e = h * .14, X = x + dx * cw, Y = y + dy * ch;
