@@ -1,4 +1,4 @@
-import * as FX from './fx.js';
+import * as FX from './fx.js?v=chrome1';
 import { seq, Stage, SMALL } from './frames.js';
 import { heroFx } from './hero-fx.js';
 
