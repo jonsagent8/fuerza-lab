@@ -103,7 +103,7 @@ function pickVlt(v) {
 $$('.vlt .chip').forEach(ch => ch.addEventListener('click', () => { pickVlt(+ch.dataset.vlt); chipOn(+ch.dataset.vlt); }));
 const chipOn = v => $$('.vlt .chip').forEach(c => c.classList.toggle('on', +c.dataset.vlt === v));
 
-/* ---------------- wrap: each swatch plays its own wrap clip; Portimao Blue is frame 0 of all of them ---------------- */
+/* ---------------- wrap: each swatch plays its own wrap clip; factory gloss black is frame 0 of all of them ---------------- */
 const wrap = { clip: WRAPS[0], f: 0, tl: null, pick: -1 };
 const COLORS = $$('.swatch').map((b, i) => ({ el: b, f: b.dataset.f, name: b.querySelector('span').textContent, clip: WRAPS[i] || null }));
 COLORS.forEach(c => {
@@ -120,7 +120,7 @@ function applyWrap(i) {
   const back = Math.max(.25, .7 * wrap.f / Math.max(1, seq(wrap.clip).n - 1));
   if (reduce) { if (c.clip) wrap.clip = c.clip; wrap.f = c.clip ? seq(wrap.clip).n - 1 : 0; seq(wrap.clip).img(Math.round(wrap.f)); return; }
   const tl = wrap.tl = gsap.timeline();
-  if (wrap.clip !== c.clip && wrap.f > 0) tl.to(wrap, { f: 0, duration: back, ease: 'power2.in' });   // peel back to blue first
+  if (wrap.clip !== c.clip && wrap.f > 0) tl.to(wrap, { f: 0, duration: back, ease: 'power2.in' });   // peel back to factory black first
   if (!c.clip) { if (wrap.f > 0 && wrap.clip) tl.to(wrap, { f: 0, duration: back, ease: 'power2.inOut' }); return; }
   const s = seq(c.clip), loaded = s.load();
   tl.add(() => { tl.pause(); loaded.then(() => tl.resume()); });                                    // hold until this color's frames are in

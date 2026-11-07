@@ -5,7 +5,7 @@ const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
 
 // Where the car sits in the clip relative to frame 96 (the resting frame), as a fraction of the image (from the bounding box of per-frame mattes)
 const KEYS = [
-  { f: 58, s: 0.9128, x: 0.0451, y: 0.0376 }, { f: 74, s: 0.9427, x: 0.0277, y: 0.023 }, { f: 96, s: 1, x: 0, y: 0 }, { f: 104, s: 1.0207, x: -0.0116, y: -0.009 }, { f: 119, s: 1.0625, x: -0.0329, y: -0.0272 }, { f: 139, s: 1.1254, x: -0.0677, y: -0.0563 },
+  { f: 58, s: 0.9097, x: 0.048, y: 0.0391 }, { f: 74, s: 0.94, x: 0.0314, y: 0.0247 }, { f: 96, s: 1, x: 0, y: 0 }, { f: 104, s: 1.0208, x: -0.0118, y: -0.0102 }, { f: 119, s: 1.0625, x: -0.035, y: -0.0278 }, { f: 139, s: 1.1268, x: -0.0681, y: -0.0569 },
 ];
 const PAD = .12;   // the plate is the image plus 12% on each side, so a moved or scaled matte still covers the screen
 const FADE = { inFrom: 58, inTo: 92, outFrom: 116, outTo: 142 };   // on while the bay is dim, gone before the headlights come on
