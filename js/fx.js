@@ -119,7 +119,9 @@ export function split(el) {
   el.dataset.done = 1;
   const words = el.textContent.trim().split(/\s+/);
   const film = el.classList.contains('film-text'); if (film) el.classList.remove('film-text');
-  el.innerHTML = words.map(w => `<span class="w"><span${film ? ' class="film-text"' : ''}>${w}</span></span>`).join(' ');
+  const chrome = el.classList.contains('chrome-text'); if (chrome) el.classList.remove('chrome-text');
+  const cls = film ? ' class="film-text"' : chrome ? ' class="chrome-text"' : '';
+  el.innerHTML = words.map(w => `<span class="w"><span${cls}>${w}</span></span>`).join(' ');
   return el.querySelectorAll('.w > span');
 }
 export function scramble(el, dur = 1.1) {
