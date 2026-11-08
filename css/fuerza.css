@@ -112,3 +112,13 @@
 }
 @keyframes chrome-sweep { 0%, 35% { background-position: 130% 0, 0 0; } 75%, 100% { background-position: -30% 0, 0 0; } }
 @media (prefers-reduced-motion: reduce) { .chrome-text { animation: none; } }
+
+/* drag-to-spin on the tint + wrap car */
+#tint, #wrap { touch-action: pan-y; }
+#tint .scene__sticky, #wrap .scene__sticky { cursor: grab; }
+#tint.spinning .scene__sticky, #wrap.spinning .scene__sticky { cursor: grabbing; }
+.spin-hint { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); margin: 0; padding: 8px 14px; border-radius: 999px;
+  font-size: 11px; letter-spacing: .22em; color: rgba(255,255,255,.75); background: rgba(10,10,12,.55); border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); pointer-events: none; white-space: nowrap; }
+.spin-hint span { color: #ff3b3b; }
+@media (max-width: 767px) { .spin-hint { bottom: auto; top: 84px; } }

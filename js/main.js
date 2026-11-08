@@ -1,7 +1,7 @@
-import * as FX from './fx.js?v=build1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=build1';
+import * as FX from './fx.js?v=spin1';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=spin1';
 import { heroFx } from './hero-fx.js';
-import { BuildCar } from './build-car.js?v=build1';
+import { SpinCar } from './spin-car.js?v=spin1';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -40,7 +40,7 @@ FX.heal($('#healPad'), $('#healCanvas'), $('#healTemp'));
 const stage = new Stage($('#stage'));
 const updateHeroFx = heroFx($('#heroFx'), $('.hero'));
 // tint and wrap share one live-composited car, so a picked color and a picked shade stay on it together
-const car = new BuildCar();
+const car = new SpinCar({ small: SMALL });
 const media = $$('[data-media]').map(el => ({
   el, name: el.dataset.media, role: el.dataset.role || '', s: el.dataset.role === 'tint' || el.dataset.role === 'wrap' ? car : seq(el.dataset.media),
   fit: el.dataset.fit || 'cover', y: +(el.dataset.y || .4), focusX: +(el.dataset.focus || .5),
@@ -105,6 +105,21 @@ function applyWrap(i) {
   car.setColor(c.k, reduce ? null : TW);
 }
 
+/* ---------------- spin: drag or swipe sideways on the tint / wrap scenes turns the 3D car ---------------- */
+// vertical swipes still scroll the page (touch-action: pan-y on these scenes); buttons keep working
+for (const el of [$('#tint'), $('#wrap')]) {
+  let x0 = null, id = null;
+  el.addEventListener('pointerdown', e => {
+    if (e.target.closest('button, a') || !car.spinnable) return;
+    x0 = e.clientX; id = e.pointerId; car.grab(); el.classList.add('spinning');
+  });
+  el.addEventListener('pointermove', e => { if (x0 == null || e.pointerId !== id) return; car.spinBy(e.clientX - x0); x0 = e.clientX; });
+  const end = e => { if (x0 == null || (e && e.pointerId !== id)) return; x0 = null; car.release(); el.classList.remove('spinning'); };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
+}
+// fetch three.js + the 3D car once the page has settled, so it is ready by the time the visitor scrolls to tint
+addEventListener('load', () => (window.requestIdleCallback || setTimeout)(() => car.load(), { timeout: 2500 }));
+
 /* ---------------- scroll choreography ---------------- */
 const scenes = $$('[data-scene]'), nav = $('#nav');
 let offs = [];
@@ -156,7 +171,8 @@ function tick() {
       // entering the section squeegees 35% film on once, until a shade is tapped
       if (!tint.picked && !tint.auto && !reduce && m.prog > .04 && car.ready) { tint.auto = true; car.setTint(35, TW); }
       f = 0;
-    } else if (m.role === 'wrap') f = 0;
+      if (m.prog > 0 && m.prog < 1) car.shiftTo(mobile ? 0 : .14);      // panel on the left: car to the right
+    } else if (m.role === 'wrap') { f = 0; if (m.prog > 0 && m.prog < 1) car.shiftTo(mobile ? 0 : -.14); }
     else f = reduce ? m.still : p;
     m.cur = s;
     const target = f * (s.n - 1);
