@@ -1,7 +1,7 @@
 import * as FX from './fx.js?v=spin1';
 import { seq, Stage, SMALL, setFocus } from './frames.js?v=spin1';
 import { heroFx } from './hero-fx.js';
-import { SpinCar } from './spin-car.js?v=spin1';
+import { SpinCar } from './spin-car.js?v=spin2';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));

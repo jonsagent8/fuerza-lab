@@ -15,7 +15,7 @@ export class SpinCar {
   get spinnable() { return !!(this.d3 && this.d3.ready); }
   load() {
     if (!this.l3) {
-      this.l3 = import('./car3d.js?v=spin1')
+      this.l3 = import('./car3d.js?v=spin2')
         .then(m => { this.d3 = new m.Car3D(this.small ? { w: 1280, h: 720 } : { w: 1600, h: 900 }); return this.d3.load(); })
         .catch(e => { console.warn('3D car unavailable, using the side photo', e); this.d3 = null; });
     }
