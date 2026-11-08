@@ -19,7 +19,11 @@ class Seq {
   constructor(name, n) {
     this.name = name; this.n = n; this.blobs = new Array(n); this.bmps = new Array(n); this.slots = new Array(n);
     this.busy = new Set(); this.started = false; this.prio = 0; this.c = 0; this.dir = 1; this.seen = -1e9; this.keep = -1;
+    this.loop = false;   // a turntable spin: frame indices wrap around (n-1 is followed by 0)
   }
+  wrap(i) { return this.loop ? ((i % this.n) + this.n) % this.n : i; }
+  // signed distance from frame a to frame b, the short way round on a loop
+  dist(a, b) { let d = b - a; if (this.loop) { d = ((d % this.n) + this.n) % this.n; if (d > this.n / 2) d -= this.n; } return d; }
   src(i) { return `assets/frames/${this.name}/full/${String(i + 1).padStart(4, '0')}.webp`; }
   // ask for frame i now (jumps the download queue); .done resolves once it is downloaded
   img(i) {
@@ -59,20 +63,24 @@ class Seq {
   }
   wanted(i) {
     if (i === this.keep) return true;
-    const d = (i - this.c) * this.dir;
-    return performance.now() - this.seen < IDLE_MS ? d <= AHEAD + 4 && d >= -(BEHIND + 4) : Math.abs(i - this.c) <= 1;
+    const d = this.dist(this.c, i) * this.dir;
+    return performance.now() - this.seen < IDLE_MS ? d <= AHEAD + 4 && d >= -(BEHIND + 4) : Math.abs(this.dist(this.c, i)) <= 1;
   }
   // called by the stage whenever this clip is drawn at (fractional) frame f
   want(f) {
-    const c = clamp(Math.round(f), 0, this.n - 1);
-    if (c !== this.c) this.dir = c > this.c ? 1 : -1;
+    const c = this.loop ? this.wrap(Math.round(f)) : clamp(Math.round(f), 0, this.n - 1);
+    if (c !== this.c) {
+      this.dir = this.dist(this.c, c) > 0 ? 1 : -1;
+      // a spin can be dragged anywhere: fetch the frames around the playhead first, ahead of the rest of the clip
+      if (this.loop) for (let d = -BEHIND; d <= AHEAD + 6; d++) { const i = this.wrap(c + d * this.dir); if (!this.slots[i]) this.img(i); }
+    }
     this.c = c; this.seen = performance.now(); live.add(this);
   }
   trim() { for (let i = 0; i < this.n; i++) if (this.bmps[i] && !this.wanted(i)) { this.bmps[i].close && this.bmps[i].close(); this.bmps[i] = null; } }
-  frame(i) { return i >= 0 && i < this.n ? this.bmps[i] || null : null; }
+  frame(i) { i = this.wrap(i); return i >= 0 && i < this.n ? this.bmps[i] || null : null; }
   nearest(f) {
-    const i = clamp(Math.round(f), 0, this.n - 1);
-    for (let d = 0; d < this.n; d++) { const a = this.bmps[i - d], b = this.bmps[i + d]; if (a) return a; if (b) return b; }
+    const i = this.loop ? this.wrap(Math.round(f)) : clamp(Math.round(f), 0, this.n - 1);
+    for (let d = 0; d < this.n; d++) { const a = this.bmps[this.wrap(i - d)], b = this.bmps[this.wrap(i + d)]; if (a) return a; if (b) return b; }
     return null;
   }
 }
@@ -119,7 +127,7 @@ function pickDecode() {
   for (const q of live) {
     if (now - q.seen > IDLE_MS) continue;
     for (let d = -BEHIND; d <= AHEAD; d++) {
-      const i = q.c + d * q.dir; if (i < 0 || i >= q.n || q.bmps[i] || q.busy.has(i)) continue;
+      const i = q.wrap(q.c + d * q.dir); if (i < 0 || i >= q.n || q.bmps[i] || q.busy.has(i)) continue;
       const b = q.blobs[i]; if (!b || b === 'err') continue;
       const sc = d < 0 ? -d * 2.5 : d;
       if (sc < bs) { bs = sc; best = q; bi = i; }

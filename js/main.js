@@ -1,7 +1,6 @@
-import * as FX from './fx.js?v=spin1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=spin1';
+import * as FX from './fx.js?v=turn1';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn1';
 import { heroFx } from './hero-fx.js';
-import { SpinCar } from './spin-car.js?v=spin2';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -39,10 +38,11 @@ FX.heal($('#healPad'), $('#healCanvas'), $('#healTemp'));
 // `still` is the frame shown with reduced motion.
 const stage = new Stage($('#stage'));
 const updateHeroFx = heroFx($('#heroFx'), $('.hero'));
-// tint and wrap share one live-composited car, so a picked color and a picked shade stay on it together
-const car = new SpinCar({ small: SMALL });
+// tint and wrap open on a photoreal turntable of the car (assets/frames/spin: 360 frames, 1 degree each, built from four
+// Higgsfield segments by _hf/build-spin.mjs) that the visitor drags to rotate
+const SPIN = seq('spin'); SPIN.loop = true;
 const media = $$('[data-media]').map(el => ({
-  el, name: el.dataset.media, role: el.dataset.role || '', s: el.dataset.role === 'tint' || el.dataset.role === 'wrap' ? car : seq(el.dataset.media),
+  el, name: el.dataset.media, role: el.dataset.role || '', s: seq(el.dataset.media),
   fit: el.dataset.fit || 'cover', y: +(el.dataset.y || .4), focusX: +(el.dataset.focus || .5),
   f: 0, still: +(el.dataset.still || 1), top: 0, h: 1, prog: 0,
 }));
@@ -53,7 +53,7 @@ media.forEach(m => m.s.poster());
 const io = new IntersectionObserver(es => es.forEach(e => {
   if (!e.isIntersecting) return;
   const m = media.find(x => x.el === e.target);
-  if (m.s === car) car.load();
+  if (m.s === SPIN && reduce) [0, 90, 180, 270].forEach(i => SPIN.img(i));   // reduced motion: only the four stills
   else if (!reduce) m.s.load();
   else if (reduce && !m.role) m.s.img(Math.round(m.still * (m.s.n - 1)));
 }), { rootMargin: '300% 0px' });   // start early; the shared queue still fills the on-screen clip first
@@ -85,40 +85,68 @@ const arrivalIntro = { v: reduce ? 1 : 0 };   // the bay lights come on by thems
   });
 })();
 
-/* ---------------- tint: the shade picker squeegees film onto the live car's windows ---------------- */
+/* ---------------- spin: drag / swipe sideways on tint + wrap turns the car (loops both ways, with inertia) ---------------- */
+// frame index grows as the near side of the car moves left, so dragging left turns it that way
+const spin = { f: 0, vel: 0, drag: false };
+const SPIN_PER_PX = () => SPIN.n / Math.max(600, innerWidth * (mobile ? 1.5 : 1.1));   // a full turn ≈ one and a bit screen widths
+for (const el of [$('#tint'), $('#wrap')]) {
+  let x0 = null, t0 = 0, id = null;
+  el.addEventListener('pointerdown', e => {
+    if (reduce || e.target.closest('button, a')) return;
+    x0 = e.clientX; t0 = performance.now(); id = e.pointerId; spin.drag = true; spin.vel = 0; el.classList.add('spinning');
+    showSpin(el.id);                                                   // a playing wrap / tint clip gives way to the spin
+  });
+  el.addEventListener('pointermove', e => {
+    if (x0 == null || e.pointerId !== id) return;
+    const now = performance.now(), df = -(e.clientX - x0) * SPIN_PER_PX();
+    spin.f += df; spin.vel = df / Math.max(1, (now - t0) / (1000 / 60));   // frames per 60 Hz tick, for the fling
+    x0 = e.clientX; t0 = now;
+  });
+  const end = e => { if (x0 == null || (e && e.pointerId !== id)) return; x0 = null; spin.drag = false; el.classList.remove('spinning'); if (performance.now() - t0 > 120) spin.vel = 0; };   // finger rested before letting go: no fling
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
+}
+// reduced motion: no free spinning, the arrows step a quarter turn between the four keyframes
+$$('.spin-arrows button').forEach(b => b.addEventListener('click', () => {
+  const k = Math.round(spin.f / 90) + +b.dataset.step; spin.f = k * 90; spin.vel = 0;
+  showSpin(b.closest('section').id);
+}));
+document.documentElement.classList.toggle('reduce-motion', reduce);
+
+/* ---------------- tint: until tint can be shown on the spin, a shade plays the side-view tint clip ---------------- */
+// 70% VLT sits on an early frame, 5% on the last one
 const VLTS = [70, 50, 35, 20, 5];
-const tint = { picked: false, auto: false };
-const TW = (o, k, d) => gsap.to(o, { [k]: 1, duration: d, ease: 'power2.inOut', overwrite: true });
-if (reduce) car.setTint(35);
-function pickVlt(v) { tint.picked = true; car.setTint(v, reduce ? null : TW); }
+const tintFrac = v => (window.TINT_CURVE ? window.TINT_CURVE(v) : lerp(.15, 1, (70 - v) / 65));
+const tint = { f: 0, v: null, clip: false, tw: null };
+const tintFrame = v => tintFrac(v) * (seq('tint').n - 1);
+function pickVlt(v) {
+  const s = seq('tint'); tint.v = v; tint.tw && tint.tw.kill();
+  if (reduce) { tint.clip = true; tint.f = tintFrame(v); s.img(Math.round(tint.f)); return; }
+  s.load().then(() => { tint.clip = true; tint.tw = gsap.to(tint, { f: tintFrame(v), duration: .8, ease: 'power3.inOut' }); });
+}
 $$('.vlt .chip').forEach(ch => ch.addEventListener('click', () => { pickVlt(+ch.dataset.vlt); chipOn(+ch.dataset.vlt); }));
 const chipOn = v => $$('.vlt .chip').forEach(c => c.classList.toggle('on', +c.dataset.vlt === v));
 
-/* ---------------- wrap: each swatch sweeps a new wrap across the live car (the tint stays on) ---------------- */
-const wrap = { pick: -1 };
-const COLORS = $$('.swatch').map(b => ({ el: b, f: b.dataset.f, name: b.querySelector('span').textContent, k: b.dataset.k }));
+/* ---------------- wrap: until wraps can be shown on the spin, a swatch plays its side-view wrap clip ---------------- */
+const wrap = { clip: null, f: 0, tl: null, pick: -1 };
+const COLORS = $$('.swatch').map(b => ({ el: b, f: b.dataset.f, name: b.querySelector('span').textContent, clip: b.dataset.clip || null }));
+COLORS.forEach(c => {
+  if (!c.clip) return;
+  const pre = () => seq(c.clip).load();
+  c.el.addEventListener('pointerenter', pre); c.el.addEventListener('touchstart', pre, { passive: true }); c.el.addEventListener('focus', pre);
+});
 COLORS.forEach((c, i) => c.el.addEventListener('click', () => applyWrap(i)));
 function applyWrap(i) {
-  const c = COLORS[i]; wrap.pick = i;
+  const c = COLORS[i]; wrap.pick = i; wrap.tl && wrap.tl.kill();
   COLORS.forEach((o, j) => o.el.classList.toggle('on', j === i));
   $('#wrapNow').textContent = `${c.name.toUpperCase()} · ${c.f.toUpperCase()} FINISH`;
-  car.setColor(c.k, reduce ? null : TW);
+  if (!c.clip) { wrap.clip = null; return; }                          // factory black: back to the spin
+  const s = seq(c.clip);
+  if (reduce) { wrap.clip = c.clip; wrap.f = s.n - 1; s.img(s.n - 1); return; }
+  const tl = wrap.tl = gsap.timeline({ paused: true });
+  tl.add(() => { wrap.clip = c.clip; wrap.f = 0; }).to(wrap, { f: s.n - 1, duration: 1.8, ease: 'power2.inOut' });
+  s.load().then(() => tl.play());
 }
-
-/* ---------------- spin: drag or swipe sideways on the tint / wrap scenes turns the 3D car ---------------- */
-// vertical swipes still scroll the page (touch-action: pan-y on these scenes); buttons keep working
-for (const el of [$('#tint'), $('#wrap')]) {
-  let x0 = null, id = null;
-  el.addEventListener('pointerdown', e => {
-    if (e.target.closest('button, a') || !car.spinnable) return;
-    x0 = e.clientX; id = e.pointerId; car.grab(); el.classList.add('spinning');
-  });
-  el.addEventListener('pointermove', e => { if (x0 == null || e.pointerId !== id) return; car.spinBy(e.clientX - x0); x0 = e.clientX; });
-  const end = e => { if (x0 == null || (e && e.pointerId !== id)) return; x0 = null; car.release(); el.classList.remove('spinning'); };
-  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
-}
-// fetch three.js + the 3D car once the page has settled, so it is ready by the time the visitor scrolls to tint
-addEventListener('load', () => (window.requestIdleCallback || setTimeout)(() => car.load(), { timeout: 2500 }));
+function showSpin(id) { if (id === 'wrap') { wrap.tl && wrap.tl.kill(); wrap.clip = null; } if (id === 'tint') { tint.tw && tint.tw.kill(); tint.clip = false; } }
 
 /* ---------------- scroll choreography ---------------- */
 const scenes = $$('[data-scene]'), nav = $('#nav');
@@ -161,18 +189,15 @@ function tick() {
 
   // stage: frame targets for every clip, then which one (or two, mid-dissolve) is on screen
   const dt = gsap.ticker.deltaRatio(60) / 60, ease = 1 - Math.exp(-dt * 9), now = gsap.ticker.time;
+  if (!spin.drag && Math.abs(spin.vel) > .01) { spin.f += spin.vel * dt * 60; spin.vel *= Math.pow(.04, dt); } else if (!spin.drag) spin.vel = 0;
   for (const m of media) {
     const p = clamp((y - m.top) / Math.max(1, m.scrubEnd - m.top));
     m.prog = clamp((y - m.top) / Math.max(1, m.h - vh));
     let s = m.s, f;
     if (m.name === 'arrival') f = lerp(0, .5, arrivalIntro.v) + .5 * p;   // rests on frame 96: paint lit, headlights still off
-    else if (m.role === 'tint') {
-      // entering the section plays the film from clear to 35% once, until a shade is tapped
-      // entering the section squeegees 35% film on once, until a shade is tapped
-      if (!tint.picked && !tint.auto && !reduce && m.prog > .04 && car.ready) { tint.auto = true; car.setTint(35, TW); }
-      f = 0;
-      if (m.prog > 0 && m.prog < 1) car.shiftTo(mobile ? 0 : .14);      // panel on the left: car to the right
-    } else if (m.role === 'wrap') { f = 0; if (m.prog > 0 && m.prog < 1) car.shiftTo(mobile ? 0 : -.14); }
+    else if (m.role === 'tint' && tint.clip) { s = seq('tint'); f = tint.f / Math.max(1, s.n - 1); }
+    else if (m.role === 'wrap' && wrap.clip) { s = seq(wrap.clip); f = wrap.f / Math.max(1, s.n - 1); }
+    else if (m.role === 'tint' || m.role === 'wrap') { s = SPIN; f = spin.f / (SPIN.n - 1); }
     else f = reduce ? m.still : p;
     m.cur = s;
     const target = f * (s.n - 1);
@@ -199,8 +224,8 @@ function tick() {
   steps.forEach(li => li.classList.toggle('on', pw >= +li.dataset.at));
 
   // tint readout follows the film
-  const vltShown = car.vlt == null ? 100 : car.vlt;
-  if ($('#vltNum').textContent !== String(vltShown)) { $('#vltNum').textContent = vltShown; chipOn(car.vlt); }
+  const vltShown = tint.v == null ? 100 : tint.v;
+  if ($('#vltNum').textContent !== String(vltShown)) $('#vltNum').textContent = vltShown;
 
   // correction: before/after tags trade places as the light sweeps the panel
   if (M.correction) { const c = M.correction.prog; tags.before.style.opacity = 1 - ss(.35, .55, c); tags.after.style.opacity = ss(.55, .75, c); }
