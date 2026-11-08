@@ -1,5 +1,5 @@
-import * as FX from './fx.js?v=chrome1';
-import { seq, Stage, SMALL } from './frames.js';
+import * as FX from './fx.js?v=full1';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=full1';
 import { heroFx } from './hero-fx.js';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -54,7 +54,7 @@ const io = new IntersectionObserver(es => es.forEach(e => {
   if (!reduce && m.role !== 'wrap') m.s.load();
   else if (reduce && m.role === 'tint') m.s.img(Math.round(tint.f));
   else if (reduce && !m.role) m.s.img(Math.round(m.still * (m.s.n - 1)));
-}), { rootMargin: '100% 0px' });
+}), { rootMargin: '300% 0px' });   // start early; the shared queue still fills the on-screen clip first
 media.forEach(m => io.observe(m.el));
 
 /* ---------------- loader ---------------- */
@@ -163,6 +163,7 @@ function tick() {
   if (mobile) measure();
   const y = lenis && !mobile ? lenis.animatedScroll : scrollY, vh = innerHeight;
   if (!offs.length) return;
+  setFocus(media, y, vh);
   const R = offs.map(o => (y - o.top) / Math.max(1, o.h - vh)), P = R.map(r => clamp(r));
   let cur = 0; offs.forEach((o, i) => { if (y >= o.top - 2) cur = i; });
 
@@ -244,7 +245,7 @@ if (/[?&]debug\b/.test(location.search)) {
   let frames = 0, fps = 0, t0 = performance.now();
   gsap.ticker.add(() => {
     frames++; const now = performance.now(); if (now - t0 > 500) { fps = Math.round(frames * 1000 / (now - t0)); frames = 0; t0 = now; }
-    d.textContent = `fps ${fps}  y ${Math.round(scrollY)}  set ${SMALL ? 'mobile' : 'desktop'}\n` + media.filter(m => m.prog > 0 && m.prog < 1).map(m => `${m.name} f${Math.round(m.f)} p${(m.prog || 0).toFixed(2)} loaded ${m.s.imgs.filter(i => i && i.ok).length}/${m.s.n}`).join('\n');
+    d.textContent = `fps ${fps}  y ${Math.round(scrollY)}  set full\n` + media.filter(m => m.prog > 0 && m.prog < 1).map(m => `${m.name} f${Math.round(m.f)} p${(m.prog || 0).toFixed(2)} loaded ${m.s.loaded()}/${m.s.n} decoded ${m.s.bmps.filter(Boolean).length}`).join('\n');
   });
 }
 

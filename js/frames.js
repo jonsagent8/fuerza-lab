@@ -3,47 +3,142 @@ import COUNTS from './frames-manifest.js';
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 export const SMALL = matchMedia('(max-width: 767px)').matches;
-const SET = SMALL ? 'mobile' : 'desktop';
-const CONCURRENCY = 6;
+const TOUCH = SMALL || matchMedia('(pointer: coarse)').matches;
+// Every device loads the same full-size frames (native clip size, up to 1920 wide). Downloaded frames are kept compressed
+// (a Blob each); only a small window around the playhead is decoded into ImageBitmaps, off the main thread, so a phone
+// never holds hundreds of 1920px bitmaps or re-decodes one mid-scroll.
+const FETCHERS = 8;                       // parallel downloads, shared by every clip
+const DECODERS = TOUCH ? 3 : 4;           // parallel decodes
+const AHEAD = TOUCH ? 10 : 18, BEHIND = TOUCH ? 4 : 8;   // decoded frames kept around the playhead (direction of play first)
+const IDLE_MS = 1200;                     // a clip not drawn for this long drops to a single decoded frame
 
 const all = {};
 export function seq(name) { return all[name] || (all[name] = new Seq(name, COUNTS[name])); }
 
 class Seq {
-  constructor(name, n) { this.name = name; this.n = n; this.imgs = new Array(n); this.started = false; this.listeners = new Set(); }
-  src(i) { return `assets/frames/${this.name}/${SET}/${String(i + 1).padStart(4, '0')}.webp`; }
-  img(i) {
-    let im = this.imgs[i];
-    if (!im) {
-      im = this.imgs[i] = new Image(); im.decoding = 'async';
-      // decode before a frame counts as ready, so drawing it never stalls the scroll on a phone
-      const ready = () => { im.ok = true; this.listeners.forEach(f => f(i)); };
-      im.done = new Promise(r => { im.onload = () => (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(ready).then(r); im.onerror = r; });
-      im.src = this.src(i);
-    }
-    return im;
+  constructor(name, n) {
+    this.name = name; this.n = n; this.blobs = new Array(n); this.bmps = new Array(n); this.slots = new Array(n);
+    this.busy = new Set(); this.started = false; this.prio = 0; this.c = 0; this.dir = 1; this.seen = -1e9; this.keep = -1;
   }
-  poster() { return this.img(0).done; }
-  // coarse-to-fine order (every 16th frame, then every 8th, ...) so scrubbing has something close while the rest streams in
+  src(i) { return `assets/frames/${this.name}/full/${String(i + 1).padStart(4, '0')}.webp`; }
+  // ask for frame i now (jumps the download queue); .done resolves once it is downloaded
+  img(i) {
+    let sl = this.slots[i];
+    if (!sl) { sl = this.slots[i] = {}; sl.done = new Promise(r => (sl.resolve = r)); urgent.push([this, i]); fetchPump(); }
+    return sl;
+  }
+  // first frame, downloaded and decoded (kept for good as the clip's poster)
+  poster() {
+    this.keep = 0;
+    return this.img(0).done.then(() => this.decode(0));
+  }
+  // download the whole clip, coarse-to-fine (every 16th frame, then every 8th, ...) so scrubbing has something close
+  // while the rest streams in. Clips share one queue: the one on screen and the next one down go first (setFocus).
   load() {
     if (this.started) return this.all; this.started = true;
-    const seen = new Uint8Array(this.n), order = [0, this.n - 1];
+    const seen = new Uint8Array(this.n), order = [0, this.n - 1], coarse = [1, 1];
     seen[0] = seen[this.n - 1] = 1;
-    for (let step = 16; step >= 1; step >>= 1) for (let i = 0; i < this.n; i += step) if (!seen[i]) { seen[i] = 1; order.push(i); }
-    let next = 0;
-    const worker = () => next < order.length ? this.img(order[next++]).done.then(worker) : null;
-    this.all = Promise.all(Array.from({ length: CONCURRENCY }, worker));
+    for (let step = 16; step >= 1; step >>= 1) for (let i = 0; i < this.n; i += step) if (!seen[i]) { seen[i] = 1; order.push(i); coarse.push(step >= 8 ? 1 : 0); }
+    this.order = order; this.coarse = coarse; this.next = 0;
+    this.all = Promise.all(order.map(i => this.slot(i).done));
+    queue.push(this); fetchPump();
     return this.all;
   }
-  nearest(i) {
-    i = clamp(Math.round(i), 0, this.n - 1);
-    for (let d = 0; d < this.n; d++) {
-      const a = this.imgs[i - d], b = this.imgs[i + d];
-      if (a && a.ok) return a; if (b && b.ok) return b;
-    }
+  slot(i) { let sl = this.slots[i]; if (!sl) { sl = this.slots[i] = {}; sl.done = new Promise(r => (sl.resolve = r)); } return sl; }
+  loaded() { let k = 0; for (const b of this.blobs) if (b) k++; return k; }
+  decode(i) {
+    if (this.bmps[i]) return Promise.resolve(this.bmps[i]);
+    const b = this.blobs[i]; if (!b || b === 'err') return Promise.resolve(null);
+    this.busy.add(i);
+    return toBitmap(b).then(bm => {
+      this.busy.delete(i);
+      if (bm && window.__fzTag) window.__fzTag(bm, this.name, i);   // test hook (_hf/load-choppy.mjs)
+      if (bm && this.wanted(i)) this.bmps[i] = bm; else if (bm && bm.close) bm.close();
+      return this.bmps[i] || null;
+    });
+  }
+  wanted(i) {
+    if (i === this.keep) return true;
+    const d = (i - this.c) * this.dir;
+    return performance.now() - this.seen < IDLE_MS ? d <= AHEAD + 4 && d >= -(BEHIND + 4) : Math.abs(i - this.c) <= 1;
+  }
+  // called by the stage whenever this clip is drawn at (fractional) frame f
+  want(f) {
+    const c = clamp(Math.round(f), 0, this.n - 1);
+    if (c !== this.c) this.dir = c > this.c ? 1 : -1;
+    this.c = c; this.seen = performance.now(); live.add(this);
+  }
+  trim() { for (let i = 0; i < this.n; i++) if (this.bmps[i] && !this.wanted(i)) { this.bmps[i].close && this.bmps[i].close(); this.bmps[i] = null; } }
+  frame(i) { return i >= 0 && i < this.n ? this.bmps[i] || null : null; }
+  nearest(f) {
+    const i = clamp(Math.round(f), 0, this.n - 1);
+    for (let d = 0; d < this.n; d++) { const a = this.bmps[i - d], b = this.bmps[i + d]; if (a) return a; if (b) return b; }
     return null;
   }
 }
+
+function toBitmap(blob) {
+  if (window.createImageBitmap) return createImageBitmap(blob).catch(() => null);
+  return new Promise(r => { const im = new Image(), u = URL.createObjectURL(blob); im.onload = () => (im.decode ? im.decode() : Promise.resolve()).catch(() => {}).then(() => { URL.revokeObjectURL(u); r(im); }); im.onerror = () => r(null); im.src = u; });
+}
+
+// ---- downloads: urgent requests first, then clips by scroll distance; a clip's coarse frames beat far-away fine ones ----
+const urgent = [], queue = []; let fetching = 0;
+function pickFetch() {
+  while (urgent.length) { const [q, i] = urgent.shift(); if (!q.blobs[i] && !q.slot(i).req) return [q, i]; }
+  let best = null, bs = Infinity;
+  for (const q of queue) {
+    while (q.next < q.order.length && q.slot(q.order[q.next]).req) q.next++;
+    if (q.next >= q.order.length) continue;
+    const sc = q.prio + (q.coarse[q.next] ? 0 : 1.5);
+    if (sc < bs) { bs = sc; best = q; }
+  }
+  return best ? [best, best.order[best.next++]] : null;
+}
+function fetchPump() {
+  while (fetching < FETCHERS) {
+    const job = pickFetch(); if (!job) return;
+    const [q, i] = job, sl = q.slot(i); sl.req = true; fetching++;
+    fetch(q.src(i)).then(r => (r.ok ? r.blob() : 'err')).catch(() => 'err').then(b => {
+      q.blobs[i] = b; fetching--; sl.resolve(); fetchPump(); decodePump();
+    });
+  }
+}
+// called every frame from the scroll loop: [{ s, top, h }] in page px. 0 = on screen; scenes behind count triple.
+export function setFocus(list, y, vh) {
+  for (const { s, top, h } of list) {
+    const ahead = (top - (y + vh)) / vh, behind = (y - (top + h)) / vh;
+    s.prio = ahead > 0 ? ahead : behind > 0 ? behind * 3 : 0;
+  }
+}
+
+// ---- decodes: frames nearest the playhead of clips drawn in the last moment, direction of play first ----
+const live = new Set(); let decoding = 0;
+function pickDecode() {
+  let best = null, bi = -1, bs = Infinity; const now = performance.now();
+  for (const q of live) {
+    if (now - q.seen > IDLE_MS) continue;
+    for (let d = -BEHIND; d <= AHEAD; d++) {
+      const i = q.c + d * q.dir; if (i < 0 || i >= q.n || q.bmps[i] || q.busy.has(i)) continue;
+      const b = q.blobs[i]; if (!b || b === 'err') continue;
+      const sc = d < 0 ? -d * 2.5 : d;
+      if (sc < bs) { bs = sc; best = q; bi = i; }
+    }
+  }
+  return best ? [best, bi] : null;
+}
+function decodePump() {
+  while (decoding < DECODERS) {
+    const job = pickDecode(); if (!job) return;
+    const [q, i] = job; decoding++;
+    q.decode(i).then(() => { decoding--; decodePump(); });
+  }
+}
+function sweep() {
+  const now = performance.now();
+  for (const q of live) { q.trim(); if (now - q.seen > IDLE_MS * 2) live.delete(q); }
+}
+setInterval(sweep, 400);
 
 // One fixed full-screen canvas for the whole page. render() draws one clip, or two while one dissolves into the next.
 // layer: { s, f, alpha, scale, fit, y, focusX }. fit 'width' (portrait screens only) shows the whole car across the
@@ -65,9 +160,10 @@ export class Stage {
     for (const L of layers) {
       g.fillStyle = '#060607';
       // between two clip frames, draw the earlier one and fade the next over it; if either isn't in yet, show the closest frame
-      const i0 = Math.floor(L.f), f0 = L.s.imgs[i0], f1 = L.s.imgs[i0 + 1], both = f0 && f0.ok && f1 && f1.ok;
+      L.s.want(L.f);
+      const i0 = Math.floor(L.f), f0 = L.s.frame(i0), f1 = L.s.frame(i0 + 1), both = f0 && f1;
       const im = both ? f0 : L.s.nearest(L.f); if (!im || L.alpha <= 0) continue;
-      const iw = im.naturalWidth, ih = im.naturalHeight, byWidth = L.fit === 'width' && ch > cw;
+      const iw = im.width, ih = im.height, byWidth = L.fit === 'width' && ch > cw;
       const k = (byWidth ? cw / iw * 1.18 : Math.max(cw / iw, ch / ih)) * (L.scale || 1), w = iw * k, h = ih * k;
       const x = byWidth ? (cw - w) / 2 : (cw - w) * (L.focusX ?? .5), y = byWidth ? (ch - h) * (L.y ?? .4) : (ch - h) / 2;
       g.globalAlpha = Math.min(1, L.alpha);
@@ -92,5 +188,6 @@ export class Stage {
       g.fillStyle = r; g.fillRect(0, 0, cw, ch);
     }
     g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    decodePump();
   }
 }
