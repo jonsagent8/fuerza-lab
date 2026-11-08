@@ -6,7 +6,7 @@ const html = `<!doctype html><script type="importmap">{"imports":{"three":"https
 import * as THREE from 'three'; import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'; import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 const g = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('/m.glb'); let mesh; g.scene.traverse(o => { if (o.isMesh) mesh = o; });
 g.scene.updateMatrixWorld(true);
-const geo = mesh.geometry.clone(); geo.applyMatrix4(mesh.matrixWorld);
+const geo = new THREE.BufferGeometry(); for (const [k, at] of Object.entries(mesh.geometry.attributes)) { const f = new Float32Array(at.count * at.itemSize); for (let i = 0; i < at.count; i++) for (let q = 0; q < at.itemSize; q++) f[i * at.itemSize + q] = at.getComponent(i, q); geo.setAttribute(k, new THREE.BufferAttribute(f, at.itemSize)); } geo.applyMatrix4(mesh.matrixWorld); geo.computeVertexNormals();
 const P = geo.attributes.position, U = geo.attributes.uv;
 const img = mesh.material.map.image, cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
 const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0); const D = cx.getImageData(0, 0, cv.width, cv.height).data;
@@ -25,6 +25,10 @@ for (const k in H) { const h = H[k]; out.cats[k] = { n: h.n, y: [q(h.y, .05), q(
 const band = {}; for (let i = 0; i < H.dark.y.length; i++) { const b = Math.round(H.dark.y[i] * 50) / 50; band[b] = (band[b] || 0) + 1; } out.darkByY = band;
 // red texels by z (along the car) -> wheel centers
 const rz = {}; for (let i = 0; i < H.red.z.length; i++) { if (H.red.y[i] > -0.05) continue; const b = Math.round(H.red.z[i] * 20) / 20; rz[b] = (rz[b] || 0) + 1; } out.redLowByZ = rz;
+// hood leading edge on the centreline (model space as car3d.js uses it: centred, x4): up-facing points near x = 0
+{ const N = geo.attributes.normal; const pts = [];
+  for (let i = 0; i < P.count; i++) { const x = (P.getX(i) - c.x) * 4, y = (P.getY(i) - c.y) * 4, z = (P.getZ(i) - c.z) * 4; if (Math.abs(x) < .06 && N && N.getY(i) > .35 && z > 1.2) pts.push([+z.toFixed(3), +y.toFixed(3), +N.getY(i).toFixed(2)]); }
+  pts.sort((a, b) => b[0] - a[0]); out.hoodFront = pts.filter((_, k) => k % Math.max(1, Math.floor(pts.length / 25)) === 0).slice(0, 25); }
 window.out = out; window.done = true;
 </script>`;
 const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });

@@ -15,5 +15,5 @@ const T = { '.js': 'text/javascript', '.webp': 'image/webp', '.glb': 'model/gltf
 p.on('request', r => { const u = new URL(r.url()); if (u.host !== 'c.test') return r.continue(); if (u.pathname === '/') return r.respond({ status: 200, contentType: 'text/html', body: html }); try { r.respond({ status: 200, contentType: T[path.extname(u.pathname)] || 'application/octet-stream', body: fs.readFileSync('.' + u.pathname) }); } catch { r.respond({ status: 404, body: '' }); } });
 p.on('pageerror', e => console.log('err', e.message)); p.on('console', m => m.type() === 'error' && console.log('console', m.text()));
 await p.goto('https://c.test/'); await p.waitForFunction('window.ready', { timeout: 120000 });
-for (const [k, y] of [[0, .5], [1, 1.57], [2, 3.0], [3, -1.2]]) { const d = await p.evaluate(y => window.shot(y), y); fs.writeFileSync(`${OUT}/c3-${k}.jpg`, Buffer.from(d.split(',')[1], 'base64')); }
+for (const [k, y] of [[0, .5], [1, 1.57], [2, 3.0], [3, -1.2], [4, 1.3]]) { const d = await p.evaluate(y => window.shot(y), y); fs.writeFileSync(`${OUT}/c3-${k}.jpg`, Buffer.from(d.split(',')[1], 'base64')); }
 await b.close(); console.log('ok');

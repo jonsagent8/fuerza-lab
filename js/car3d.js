@@ -26,7 +26,7 @@ const filmK = v => (v == null ? 0 : Math.min(1, .25 + .75 * ss(0, 1, (70 - v) / 
 const SCALE = 4, GROUND = -.812;
 const GLASS = [.13, .82];                 // glass band, bottom (beltline) to top (roof edge), y in model space
 const WHEELS = [[1.48, -.46], [-1.24, -.46]], WHEEL_R = .37;   // [z, y] centres, radius
-const BADGE = [0, .23, 1.83, .1];         // a badge-like mark the 3D engine invented on the hood: painted over
+const BADGE = [0, .07, 2.15, .17];        // a badge-like ring the 3D engine invented on the nose (measured with _hf/glbprobe.mjs): painted over
 
 export class Car3D {
   constructor({ w = 1600, h = 900 } = {}) {
@@ -71,6 +71,7 @@ export class Car3D {
     geo.computeBoundingBox(); const c = geo.boundingBox.getCenter(new THREE.Vector3());
     geo.translate(-c.x, -c.y, -c.z); geo.scale(SCALE, SCALE, SCALE);
     if (!geo.attributes.normal) geo.computeVertexNormals();
+    this.flattenBadge(geo);
     const src = mesh.material;
     this.car = new THREE.Group();
     this.car.add(new THREE.Mesh(geo, this.material(src, false)));
@@ -81,6 +82,25 @@ export class Car3D {
     this.car.add(this.shadow());
     this.scene.add(this.car);
     this.dirty = true; this.ready = true;
+  }
+
+  // the 3D engine modelled a raised emblem ring on the nose: blur the surface normals there so the ring disappears
+  // while the nose keeps its curve (positions are left alone)
+  flattenBadge(geo) {
+    const P = geo.attributes.position, N = geo.attributes.normal, [bx, by, bz, br] = BADGE, R = br * 1.3, K = .09;
+    const near = [];
+    for (let i = 0; i < P.count; i++) { const d = Math.hypot(P.getX(i) - bx, P.getY(i) - by, P.getZ(i) - bz); if (d < R + K) near.push(i); }
+    const out = [];
+    for (const i of near) {
+      const d = Math.hypot(P.getX(i) - bx, P.getY(i) - by, P.getZ(i) - bz); if (d >= R) continue;
+      let x = 0, y = 0, z = 0;
+      for (const j of near) { const e = Math.hypot(P.getX(i) - P.getX(j), P.getY(i) - P.getY(j), P.getZ(i) - P.getZ(j)); if (e < K) { const w = 1 - e / K; x += N.getX(j) * w; y += N.getY(j) * w; z += N.getZ(j) * w; } }
+      const t = 1 - Math.max(0, (d - br) / (R - br));          // full blur inside, fading out past the rim
+      const v = new THREE.Vector3(x, y, z).normalize(), o = new THREE.Vector3(N.getX(i), N.getY(i), N.getZ(i));
+      out.push([i, o.lerp(v, t).normalize()]);
+    }
+    for (const [i, v] of out) N.setXYZ(i, v.x, v.y, v.z);
+    N.needsUpdate = true;
   }
 
   // a dark bay for reflections: black room, angled white light bars overhead, red neon strips on the walls
@@ -128,7 +148,7 @@ float sstep(float a, float b, float x) { return smoothstep(a, b, x); }
   // paint = the light grey of the source model; a hood mark the generator invented counts as paint too
   float paintM = sstep(.47, .6, L) * (1. - sstep(.1, .2, S));
   float badge = 1. - sstep(${BADGE[3] * .6}, ${BADGE[3].toFixed(3)}, distance(vLocal, vec3(${BADGE[0]}., ${BADGE[1]}, ${BADGE[2]})));
-  paintM = max(paintM, badge); L = mix(L, .8, badge);
+  paintM = max(paintM, badge); L = mix(L, .74, badge);
   // glass: dark texels above the beltline, inside the body's width
   // glass by shape: above the beltline and not facing straight up (the roof, hood and trunk lid face up and stay paint)
   float glassM = sstep(${GLASS[0] - .03}, ${GLASS[0] + .03}, vLocal.y) * (1. - sstep(.72, .84, normalize(vNrm).y)) * (1. - sstep(.25, .45, S));
@@ -160,6 +180,8 @@ float sstep(float a, float b, float x) { return smoothstep(a, b, x); }
   diffuseColor.rgb = mix(diffuseColor.rgb, glassCol, glassM);
   float glint = glassM * (1. - sstep(0., .025, abs(vLocal.y - yl))) * step(.001, uSq) * step(uSq, .999);
   if (uIsMirror > .5) diffuseColor.a *= .32 * (1. - sstep(-.8, .55, vLocal.y));`)
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+  normal = normalize(mix(normal, nonPerturbedNormal, badge));     // the emblem ring is in the normal map too`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
   roughnessFactor = mix(roughnessFactor, fin.x, paintM); roughnessFactor = mix(roughnessFactor, .04, glassM);`)
         .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
