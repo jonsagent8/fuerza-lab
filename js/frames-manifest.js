@@ -5,11 +5,5 @@ export default {
   'finale': 193,
   'interior': 145,
   'ppf': 145,
-  'tint': 145,
   'wash': 193,
-  'wrap-chrome': 121,
-  'wrap-graphite': 121,
-  'wrap-matteblack': 121,
-  'wrap-pearl': 121,
-  'wrap-red': 121,
 };
