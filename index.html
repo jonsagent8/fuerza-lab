@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..900;1,100..125,400..900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/fuerza.css?v=turn4">
+<link rel="stylesheet" href="css/fuerza.css?v=turn5">
 <link rel="preload" as="fetch" href="assets/frames/arrival/full/0001.webp" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
@@ -118,7 +118,7 @@
     </div>
   </section>
 
-  <section class="scene" id="tint" data-scene="3" data-media="spinw" data-role="tint" data-fit="width" data-y=".3">
+  <section class="scene" id="tint" data-scene="3" data-media="spin-black" data-role="tint" data-fit="width" data-y=".3">
     <div class="scene__sticky">
       <p class="spin-hint mono" aria-hidden="true"><span>&#8592;</span> DRAG TO SPIN <span>&#8594;</span></p>
       <div class="spin-arrows" role="group" aria-label="Rotate the car"><button type="button" data-step="-1" aria-label="Rotate left">&#8249;</button><button type="button" data-step="1" aria-label="Rotate right">&#8250;</button></div>
@@ -137,7 +137,7 @@
     </div>
   </section>
 
-  <section class="scene" id="wrap" data-scene="4" data-media="spinw" data-role="wrap" data-fit="width" data-y=".3">
+  <section class="scene" id="wrap" data-scene="4" data-media="spin-black" data-role="wrap" data-fit="width" data-y=".3">
     <div class="scene__sticky">
       <p class="spin-hint mono" aria-hidden="true"><span>&#8592;</span> DRAG TO SPIN <span>&#8594;</span></p>
       <div class="spin-arrows" role="group" aria-label="Rotate the car"><button type="button" data-step="-1" aria-label="Rotate left">&#8249;</button><button type="button" data-step="1" aria-label="Rotate right">&#8250;</button></div>
@@ -146,13 +146,13 @@
         <h2 class="panel__title" data-split>Any color. Fully reversible.</h2>
         <p>Full or partial color change, chrome delete and accents in premium cast vinyl. It protects the factory paint underneath and peels off cleanly when you want something new.</p>
         <div class="swatches" role="group" aria-label="Wrap color">
-          <button class="swatch" data-k="red" data-clip="wrap-red" data-c="#b0121a" data-f="gloss" style="--c:#b0121a"><i></i><span>Fuerza Red</span></button>
-          <button class="swatch" hidden data-k="blue" data-c="#1f4fa8" data-f="metallic" style="--c:#1f4fa8"><i></i><span>Portimao Blue</span></button>
-          <button class="swatch" data-k="graphite" data-clip="wrap-graphite" data-c="#3a3f47" data-f="satin" style="--c:#3a3f47"><i></i><span>Satin Graphite</span></button>
-          <button class="swatch" data-k="pearl" data-clip="wrap-pearl" data-c="#e6ebf0" data-f="pearl" style="--c:#e6ebf0"><i></i><span>Glacier Pearl</span></button>
-          <button class="swatch" data-k="chrome" data-clip="wrap-chrome" data-c="#c9ced6" data-f="chrome" style="--c:#c9ced6"><i></i><span>Chrome Silver</span></button>
-          <button class="swatch" data-k="matte" data-clip="wrap-matteblack" data-c="#16181c" data-f="matte" style="--c:#16181c"><i></i><span>Matte Black</span></button>
-          <button class="swatch" data-k="factory" data-c="#0b0b0e" data-f="gloss" style="--c:#0b0b0e"><i></i><span>Factory Black</span></button>
+          <button class="swatch" data-k="red" data-spin="red" data-c="#b0121a" data-f="gloss" style="--c:#b0121a"><i></i><span>Fuerza Red</span></button>
+          <button class="swatch" data-k="blue" data-spin="blue" data-c="#1f4fa8" data-f="metallic" style="--c:#1f4fa8"><i></i><span>Portimao Blue</span></button>
+          <button class="swatch" data-k="graphite" data-spin="graphite" data-c="#3a3f47" data-f="satin" style="--c:#3a3f47"><i></i><span>Satin Graphite</span></button>
+          <button class="swatch" data-k="pearl" data-spin="pearl" data-c="#e6ebf0" data-f="pearl" style="--c:#e6ebf0"><i></i><span>Glacier Pearl</span></button>
+          <button class="swatch" data-k="chrome" data-spin="chrome" data-c="#c9ced6" data-f="chrome" style="--c:#c9ced6"><i></i><span>Chrome Silver</span></button>
+          <button class="swatch" data-k="matte" data-spin="matte" data-c="#16181c" data-f="matte" style="--c:#16181c"><i></i><span>Matte Black</span></button>
+          <button class="swatch" data-k="factory" data-spin="black" data-c="#0b0b0e" data-f="gloss" style="--c:#0b0b0e"><i></i><span>Factory Black</span></button>
         </div>
         <p class="note mono" id="wrapNow">FINISH · GLOSS — click any swatch to rewrap the car</p>
       </div>
@@ -324,6 +324,6 @@
   </div>
 </main>
 
-<script type="module" src="js/main.js?v=turn4"></script>
+<script type="module" src="js/main.js?v=turn5"></script>
 </body>
 </html>

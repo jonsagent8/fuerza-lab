@@ -1,7 +1,7 @@
 import * as FX from './fx.js?v=turn1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn4';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn5';
 import { heroFx } from './hero-fx.js';
-import { Painter } from './paint.js?v=paint2';
+import { Painter } from './paint.js?v=paint3';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -39,24 +39,56 @@ FX.heal($('#healPad'), $('#healCanvas'), $('#healTemp'));
 // `still` is the frame shown with reduced motion.
 const stage = new Stage($('#stage'));
 const updateHeroFx = heroFx($('#heroFx'), $('.hero'));
-// tint and wrap open on a photoreal turntable of the car (assets/frames/spin: 360 frames, 1 degree each, built from four
-// Higgsfield segments by _hf/build-spin.mjs) that the visitor drags to rotate
-const SPIN = seq('spinw'); SPIN.loop = true;
-// the spin is a satin-white car with clear glass; a WebGL painter (js/paint.js) lays the picked wrap and tint over it
-// using a per-frame paint/glass mask, so both stay on while the car turns. Without WebGL the white car just spins and
-// the swatches fall back to the side-view clips.
-const MASK = seq('spinw-mask2'); MASK.loop = true;
+// tint and wrap open on a photoreal turntable of the car that the visitor drags to rotate. Every wrap colour is its own
+// rendered spin (assets/frames/spin-<colour>: 360 frames, 1 degree each, four Higgsfield segments chained by
+// _hf/build-spin.mjs), so the paint, reflections and lighting are real footage. Picking a colour fades from one spin to
+// the other at the same angle. The window tint is the one live effect: js/paint.js darkens the glass using a small
+// per-frame glass mask (spin-<colour>-mask). With no film and no fade the plain frame is drawn, like any other clip.
+const SPINS = Object.fromEntries(['black', 'red', 'blue', 'graphite', 'pearl', 'chrome', 'matte'].map(k => {
+  const s = seq('spin-' + k), m = seq('spin-' + k + '-mask'); s.loop = m.loop = true; return [k, { k, s, m }];
+}));
 const painter = new Painter(), PAINT = painter.ok;
-if (PAINT) SPIN.paint = f => {
-  // only ever pair a frame with its own mask (a mask from a neighbouring frame paints the colour off the car)
-  MASK.want(f);
-  const ok = j => SPIN.frame(j) && MASK.frame(j);
-  const k = Math.floor(f); let i = SPIN.wrap(k), t = f - k;
-  if (!ok(i)) { t = 0; let d = 1; for (; d < SPIN.n / 2; d++) { if (ok(k + d)) { i = SPIN.wrap(k + d); break; } if (ok(k - d)) { i = SPIN.wrap(k - d); break; } } if (d >= SPIN.n / 2) return null; }
-  const j = ok(i + 1) ? i + 1 : i;
-  if (j === i) t = 0;
-  return painter.draw(SPIN.frame(i), SPIN.frame(j), MASK.frame(i), MASK.frame(j), t);
+const film = { vlt: 1 };
+const look = { cur: SPINS.black, prev: null, t: 1, last: 0 };   // prev fades out while cur fades in (t: 0 -> 1)
+const FADE_S = .6;
+// closest angle to i where this spin has its frame (and its glass mask, when a film is on) decoded
+// (a frame with its mask only within a couple of degrees; further off it is better to show this angle without the film)
+function pick(L, i, needMask) {
+  const ok = j => L.s.frame(j) && (!needMask || L.m.frame(j));
+  for (let d = 0, n = needMask ? 3 : 180; d < n; d++) { if (ok(i + d)) return L.s.wrap(i + d); if (ok(i - d)) return L.s.wrap(i - d); }
+  return -1;
+}
+const SPIN = {
+  name: 'spin', n: 360, loop: true,
+  wrap: i => ((i % 360) + 360) % 360,
+  want(f) { const tinted = film.vlt < .999; for (const L of [look.cur, look.prev]) if (L) { L.s.want(f); if (tinted) L.m.want(f); } },
+  frame() { return null }, nearest() { return null },
+  load() { look.cur.s.load(); if (PAINT) look.cur.m.load(); },
+  img(i) { look.cur.s.img(i); if (PAINT) look.cur.m.img(i); },
+  paint(f) {
+    const i = this.wrap(Math.round(f)), tinted = PAINT && film.vlt < .999, L = look.cur;
+    let a = pick(L, i, tinted); if (a < 0 && tinted) a = pick(L, i, false);
+    // fading: hold the old colour until the new one has this angle, then dissolve over FADE_S
+    const now = performance.now(), dt = Math.min(.1, (now - look.last) / 1000); look.last = now;
+    if (look.prev) {
+      const P = look.prev; let b = pick(P, i, tinted); if (b < 0) b = pick(P, i, false);
+      const ready = a >= 0 && Math.abs(SPIN_DIST(a, i)) <= 2;
+      if (!ready && b >= 0) {   // new colour not in yet at this angle: keep showing the old one
+        const fb = P.s.frame(b), mb = tinted && P.m.frame(b);
+        return mb ? painter.draw(fb, fb, mb, mb, 0, film.vlt) : fb;
+      }
+      if (ready) look.t = Math.min(1, look.t + dt / FADE_S);
+      if (!ready || look.t >= 1 || !PAINT || b < 0) endFade();
+      else return painter.draw(P.s.frame(b), L.s.frame(a), tinted ? P.m.frame(b) : null, tinted ? L.m.frame(a) : null, ss(0, 1, look.t), film.vlt);
+    }
+    if (a < 0) return null;
+    if (!tinted) return L.s.frame(a);
+    const fa = L.s.frame(a), ma = L.m.frame(a);
+    return painter.draw(fa, fa, ma, ma, 0, film.vlt);
+  },
 };
+const SPIN_DIST = (a, b) => { let d = ((b - a) % 360 + 360) % 360; return d > 180 ? d - 360 : d; };
+function endFade() { const P = look.prev; look.prev = null; look.t = 1; if (P && P !== look.cur) { P.s.unload(); P.m.unload(); } }
 const media = $$('[data-media]').map(el => ({
   el, name: el.dataset.media, role: el.dataset.role || '', s: seq(el.dataset.media),
   fit: el.dataset.fit || 'cover', y: +(el.dataset.y || .4), focusX: +(el.dataset.focus || .5),
@@ -69,8 +101,8 @@ media.forEach(m => m.s.poster());
 const io = new IntersectionObserver(es => es.forEach(e => {
   if (!e.isIntersecting) return;
   const m = media.find(x => x.el === e.target);
-  if (m.s === SPIN && reduce) [0, 90, 180, 270].forEach(i => { SPIN.img(i); MASK.img(i); });   // reduced motion: only the four stills
-  else if (!reduce) { m.s.load(); if (m.s === SPIN && PAINT) MASK.load(); }
+  if (m.role === 'tint' || m.role === 'wrap') { if (reduce) [0, 90, 180, 270].forEach(i => SPIN.img(i)); else SPIN.load(); }   // reduced motion: only the four stills
+  else if (!reduce) m.s.load();
   else if (reduce && !m.role) m.s.img(Math.round(m.still * (m.s.n - 1)));
 }), { rootMargin: '300% 0px' });   // start early; the shared queue still fills the on-screen clip first
 media.forEach(m => io.observe(m.el));
@@ -132,12 +164,12 @@ document.documentElement.classList.toggle('reduce-motion', reduce);
 const tintFrac = v => (window.TINT_CURVE ? window.TINT_CURVE(v) : lerp(.15, 1, (70 - v) / 65));
 const tint = { f: 0, v: null, clip: false, tw: null };
 const tintFrame = v => tintFrac(v) * (seq('tint').n - 1);
-const film = { vlt: 1 };
 function pickVlt(v) {
   tint.v = v; tint.tw && tint.tw.kill();
   if (PAINT) {   // the film slides from the old shade to the new one
-    if (reduce) { film.vlt = v / 100; painter.set(null, null, film.vlt); return; }
-    tint.tw = gsap.to(film, { vlt: v / 100, duration: .7, ease: 'power2.inOut', onUpdate: () => painter.set(null, null, film.vlt) });
+    look.cur.m.load();
+    if (reduce) { film.vlt = v / 100; return; }
+    tint.tw = gsap.to(film, { vlt: v / 100, duration: .7, ease: 'power2.inOut' });
     return;
   }
   const s = seq('tint');
@@ -147,41 +179,29 @@ function pickVlt(v) {
 $$('.vlt .chip').forEach(ch => ch.addEventListener('click', () => { pickVlt(+ch.dataset.vlt); chipOn(+ch.dataset.vlt); }));
 const chipOn = v => $$('.vlt .chip').forEach(c => c.classList.toggle('on', +c.dataset.vlt === v));
 
-/* ---------------- wrap: a swatch repaints the spin (painter); without WebGL it plays its side-view wrap clip ---------------- */
-const wrap = { clip: null, f: 0, tl: null, pick: -1 };
-const COLORS = $$('.swatch').map(b => ({ el: b, k: b.dataset.k, f: b.dataset.f, c: b.dataset.c, name: b.querySelector('span').textContent, clip: b.dataset.clip || null }));
-if (PAINT) COLORS.forEach(c => { c.el.hidden = false; });   // every colour works on the painted spin, Portimao Blue included
-else COLORS.forEach(c => {
-  if (!c.clip) return;
-  const pre = () => seq(c.clip).load();
+/* ---------------- wrap: a swatch switches to that colour's own rendered spin, at the same angle ---------------- */
+const wrap = { pick: -1 };
+const COLORS = $$('.swatch').map(b => ({ el: b, k: b.dataset.k, f: b.dataset.f, name: b.querySelector('span').textContent, spin: SPINS[b.dataset.spin] }));
+COLORS.forEach(c => {
+  c.el.hidden = !c.spin;
+  // start fetching the frames around the current angle as soon as a finger or pointer comes near the swatch
+  const pre = () => { if (c.spin && c.spin !== look.cur) { const i = SPIN.wrap(Math.round(spin.f)); for (let d = -6; d <= 6; d++) c.spin.s.img(SPIN.wrap(i + d)); } };
   c.el.addEventListener('pointerenter', pre); c.el.addEventListener('touchstart', pre, { passive: true }); c.el.addEventListener('focus', pre);
 });
 COLORS.forEach((c, i) => c.el.addEventListener('click', () => applyWrap(i)));
-const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-const toHex = a => '#' + a.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
-const coat = { rgb: hexRgb('#0b0b0e'), trim: 0 };
 function applyWrap(i) {
-  const c = COLORS[i]; wrap.pick = i; wrap.tl && wrap.tl.kill();
+  const c = COLORS[i]; wrap.pick = i;
   COLORS.forEach((o, j) => o.el.classList.toggle('on', j === i));
   $('#wrapNow').textContent = `${c.name.toUpperCase()} · ${c.f.toUpperCase()} FINISH`;
-  if (PAINT) {   // the new colour washes over the old one; the finish switches at the halfway point
-    // the red accents stay red on a red or black car; on every other colour they go gloss black
-    const to = hexRgb(c.c), from = coat.rgb.slice(), o = { t: 0 }, trimTo = ['red', 'factory', 'matte'].includes(c.k) ? 0 : 1, trimFrom = coat.trim;
-    if (reduce) { coat.rgb = to; coat.trim = trimTo; painter.set(c.c, c.f, null, trimTo); return; }
-    wrap.tl = gsap.to(o, { t: 1, duration: .7, ease: 'power2.inOut',
-      onUpdate: () => { coat.rgb = from.map((v, k) => lerp(v, to[k], o.t)); coat.trim = lerp(trimFrom, trimTo, o.t); painter.set(toHex(coat.rgb), o.t > .5 ? c.f : null, null, coat.trim); },
-      onComplete: () => { coat.rgb = to; coat.trim = trimTo; painter.set(c.c, c.f, null, trimTo); } });
-    return;
-  }
-  if (!c.clip) { wrap.clip = null; return; }                          // factory black: back to the spin
-  const s = seq(c.clip);
-  if (reduce) { wrap.clip = c.clip; wrap.f = s.n - 1; s.img(s.n - 1); return; }
-  const tl = wrap.tl = gsap.timeline({ paused: true });
-  tl.add(() => { wrap.clip = c.clip; wrap.f = 0; }).to(wrap, { f: s.n - 1, duration: 1.8, ease: 'power2.inOut' });
-  s.load().then(() => tl.play());
+  if (!c.spin || c.spin === look.cur) return;
+  if (look.prev) endFade();                            // a fade still running: settle it first
+  look.prev = look.cur; look.cur = c.spin; look.t = reduce || !PAINT ? 1 : 0; look.last = performance.now();
+  const a = SPIN.wrap(Math.round(spin.f));
+  for (let d = -8; d <= 8; d++) c.spin.s.img(SPIN.wrap(a + d));   // this angle first, then the rest of the turn
+  if (reduce) [0, 90, 180, 270].forEach(k => SPIN.img(k)); else SPIN.load();
+  if (film.vlt < .999) c.spin.m.load();
 }
-if (PAINT) painter.set('#0b0b0e', 'gloss', 1);   // factory black, no film
-function showSpin(id) { if (PAINT) return; if (id === 'wrap') { wrap.tl && wrap.tl.kill(); wrap.clip = null; } if (id === 'tint') { tint.tw && tint.tw.kill(); tint.clip = false; } }
+function showSpin() {}
 
 /* ---------------- scroll choreography ---------------- */
 const scenes = $$('[data-scene]'), nav = $('#nav');
@@ -231,7 +251,6 @@ function tick() {
     let s = m.s, f;
     if (m.name === 'arrival') f = lerp(0, .5, arrivalIntro.v) + .5 * p;   // rests on frame 96: paint lit, headlights still off
     else if (m.role === 'tint' && tint.clip) { s = seq('tint'); f = tint.f / Math.max(1, s.n - 1); }
-    else if (m.role === 'wrap' && wrap.clip) { s = seq(wrap.clip); f = wrap.f / Math.max(1, s.n - 1); }
     else if (m.role === 'tint' || m.role === 'wrap') { s = SPIN; f = spin.f / (SPIN.n - 1); }
     else f = reduce ? m.still : p;
     m.cur = s;
@@ -299,7 +318,7 @@ if (/[?&]debug\b/.test(location.search)) {
   let frames = 0, fps = 0, t0 = performance.now();
   gsap.ticker.add(() => {
     frames++; const now = performance.now(); if (now - t0 > 500) { fps = Math.round(frames * 1000 / (now - t0)); frames = 0; t0 = now; }
-    d.textContent = `fps ${fps}  y ${Math.round(scrollY)}  set full\n` + media.filter(m => m.prog > 0 && m.prog < 1).map(m => `${m.name} f${Math.round(m.f)} p${(m.prog || 0).toFixed(2)} loaded ${m.s.loaded()}/${m.s.n} decoded ${m.s.bmps.filter(Boolean).length}`).join('\n');
+    d.textContent = `fps ${fps}  y ${Math.round(scrollY)}  set full\n` + media.filter(m => m.prog > 0 && m.prog < 1).map(m => { const q = m.role === 'tint' || m.role === 'wrap' ? look.cur.s : m.s; return `${q.name} f${Math.round(m.f)} p${(m.prog || 0).toFixed(2)} loaded ${q.loaded()}/${q.n} decoded ${q.bmps.filter(Boolean).length}`; }).join('\n');
   });
 }
 

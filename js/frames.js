@@ -1,5 +1,5 @@
 // Image-sequence playback: Higgsfield clips exported to WebP frames, drawn to a <canvas> by frame index.
-import COUNTS from './frames-manifest.js?v=turn4';
+import COUNTS from './frames-manifest.js?v=turn5';
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 export const SMALL = matchMedia('(max-width: 767px)').matches;
@@ -47,6 +47,14 @@ class Seq {
     this.all = Promise.all(order.map(i => this.slot(i).done));
     queue.push(this); fetchPump();
     return this.all;
+  }
+  // forget a clip's downloads (a wrap colour the visitor moved away from), so a phone doesn't keep seven spins in memory
+  unload() {
+    this.started = false; this.all = null; this.keep = -1; this.seen = -1e9;
+    const qi = queue.indexOf(this); if (qi >= 0) queue.splice(qi, 1);
+    for (let k = urgent.length - 1; k >= 0; k--) if (urgent[k][0] === this) urgent.splice(k, 1);
+    for (const b of this.bmps) if (b && b.close) b.close();
+    this.bmps = new Array(this.n); this.blobs = new Array(this.n); this.slots = new Array(this.n); this.busy.clear(); live.delete(this);
   }
   slot(i) { let sl = this.slots[i]; if (!sl) { sl = this.slots[i] = {}; sl.done = new Promise(r => (sl.resolve = r)); } return sl; }
   loaded() { let k = 0; for (const b of this.blobs) if (b) k++; return k; }

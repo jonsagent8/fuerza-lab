@@ -15,14 +15,14 @@ async function page(W, H, mob, reduce) {
   await p.evaluateOnNewDocument(() => {
     const o = CanvasRenderingContext2D.prototype.drawImage, tags = new WeakMap(); window.__drawn = [];
     window.__fzTag = (bm, n, i) => tags.set(bm, [n, i]);
-    const tx = WebGLRenderingContext.prototype.texImage2D; WebGLRenderingContext.prototype.texImage2D = function (...a) { const t = tags.get(a[a.length - 1]); if (t && t[0] === 'spinw') { const L = window.__drawn; if (L[L.length - 1] !== t[1]) L.push(t[1]); } return tx.apply(this, a); };
-    CanvasRenderingContext2D.prototype.drawImage = function (im, ...a) { const t = tags.get(im); if (t && t[0] === 'spinw') { const L = window.__drawn; if (L[L.length - 1] !== t[1]) L.push(t[1]); } return o.call(this, im, ...a); };
+    const tx = WebGLRenderingContext.prototype.texImage2D; WebGLRenderingContext.prototype.texImage2D = function (...a) { const t = tags.get(a[a.length - 1]); if (t && /^spin-[a-z]+$/.test(t[0])) { const L = window.__drawn; if (L[L.length - 1] !== t[1]) L.push(t[1]); } return tx.apply(this, a); };
+    CanvasRenderingContext2D.prototype.drawImage = function (im, ...a) { const t = tags.get(im); if (t && /^spin-[a-z]+$/.test(t[0])) { const L = window.__drawn; if (L[L.length - 1] !== t[1]) L.push(t[1]); } return o.call(this, im, ...a); };
   });
   await p.goto('https://fuerza.test/?debug', { waitUntil: 'load' }); await sleep(5000);
   return p;
 }
 const go = (p, id, k) => p.evaluate((id, k) => { const el = document.getElementById(id); scrollTo(0, el.offsetTop + el.offsetHeight * k); }, id, k);
-const hudF = p => p.evaluate(() => { const t = document.body.innerText.match(/spinw f(-?\d+)/); return t ? +t[1] : null; });
+const hudF = p => p.evaluate(() => { const t = document.body.innerText.match(/spin-[a-z]+ f(-?\d+)/); return t ? +t[1] : null; });
 async function drag(p, W, H, dx, ms, fling = false) {
   const steps = Math.max(6, Math.round(ms / 16)), x0 = W * (dx > 0 ? .2 : .8), y = H * .42;
   await p.mouse.move(x0, y); await p.mouse.down();
@@ -56,7 +56,7 @@ async function run(tag, W, H, mob) {
   // wrap swatches repaint the spin (tint still on); every colour, then spin with one applied
   await go(p, 'wrap', .35); await sleep(2000);
   for (const k of ['red', 'blue', 'graphite', 'pearl', 'chrome', 'matte', 'factory']) {
-    await p.evaluate(k => document.querySelector(`.swatch[data-k="${k}"]`).click(), k); await sleep(1100);
+    await p.evaluate(k => document.querySelector(`.swatch[data-k="${k}"]`).click(), k); await sleep(2500);
     await p.screenshot({ path: `${OUT}/st-${tag}-4-${k}.jpg`, quality: 78 });
   }
   await p.evaluate(() => document.querySelector('.swatch[data-k="blue"]').click()); await sleep(1100);
