@@ -1,5 +1,5 @@
 import * as FX from './fx.js?v=turn1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn1';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn2';
 import { heroFx } from './hero-fx.js';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];

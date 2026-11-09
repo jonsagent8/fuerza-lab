@@ -1,5 +1,5 @@
 // Image-sequence playback: Higgsfield clips exported to WebP frames, drawn to a <canvas> by frame index.
-import COUNTS from './frames-manifest.js';
+import COUNTS from './frames-manifest.js?v=turn2';
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 export const SMALL = matchMedia('(max-width: 767px)').matches;
