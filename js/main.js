@@ -1,7 +1,7 @@
 import * as FX from './fx.js?v=turn1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn3';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn4';
 import { heroFx } from './hero-fx.js';
-import { Painter } from './paint.js?v=paint1';
+import { Painter } from './paint.js?v=paint2';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -45,15 +45,17 @@ const SPIN = seq('spinw'); SPIN.loop = true;
 // the spin is a satin-white car with clear glass; a WebGL painter (js/paint.js) lays the picked wrap and tint over it
 // using a per-frame paint/glass mask, so both stay on while the car turns. Without WebGL the white car just spins and
 // the swatches fall back to the side-view clips.
-const MASK = seq('spinw-mask'); MASK.loop = true;
+const MASK = seq('spinw-mask2'); MASK.loop = true;
 const painter = new Painter(), PAINT = painter.ok;
 if (PAINT) SPIN.paint = f => {
+  // only ever pair a frame with its own mask (a mask from a neighbouring frame paints the colour off the car)
   MASK.want(f);
-  const k = Math.floor(f); let i = SPIN.wrap(k), a = SPIN.frame(i), b = SPIN.frame(i + 1), t = f - k;
-  if (!a || !b) { i = SPIN.nearestIdx(f); if (i < 0) return null; a = b = SPIN.frame(i); t = 0; }
-  let ma = MASK.frame(i), mb = MASK.frame(i + 1) || ma;
-  if (!ma) { const j = MASK.nearestIdx(i); if (j < 0) return null; ma = mb = MASK.frame(j); }   // a degree or two off is invisible
-  return painter.draw(a, b, ma, mb || ma, t);
+  const ok = j => SPIN.frame(j) && MASK.frame(j);
+  const k = Math.floor(f); let i = SPIN.wrap(k), t = f - k;
+  if (!ok(i)) { t = 0; let d = 1; for (; d < SPIN.n / 2; d++) { if (ok(k + d)) { i = SPIN.wrap(k + d); break; } if (ok(k - d)) { i = SPIN.wrap(k - d); break; } } if (d >= SPIN.n / 2) return null; }
+  const j = ok(i + 1) ? i + 1 : i;
+  if (j === i) t = 0;
+  return painter.draw(SPIN.frame(i), SPIN.frame(j), MASK.frame(i), MASK.frame(j), t);
 };
 const media = $$('[data-media]').map(el => ({
   el, name: el.dataset.media, role: el.dataset.role || '', s: seq(el.dataset.media),

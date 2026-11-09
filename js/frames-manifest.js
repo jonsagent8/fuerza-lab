@@ -5,7 +5,7 @@ export default {
   'finale': 193,
   'interior': 145,
   'ppf': 145,
-  'spinw-mask': 360,
+  'spinw-mask2': 360,
   'spinw': 360,
   'tint': 145,
   'wash': 193,

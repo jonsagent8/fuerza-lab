@@ -5,9 +5,9 @@
 //  - the last frame of each segment is dropped because it is the next segment's first frame (same keyframe)
 //  - the few frames either side of each join are cross-blended so the hand-off between clips doesn't pop
 import sharp from 'sharp'; import { execFileSync } from 'node:child_process'; import fs from 'node:fs'; import path from 'node:path'; import os from 'node:os';
-const SRC = process.env.HOME + '/fuerza/08-spin', OUT = 'assets/frames/spin/full', PER = 90, W = 1600, Q = 72, BLEND = 3;
+const SRC = process.env.SPIN_SRC || process.env.HOME + '/fuerza/08-spin', OUT = process.env.SPIN_OUT || 'assets/frames/spin/full', PER = 90, W = 1600, Q = 72, BLEND = 3;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'spin'));
-const segs = ['seg12', 'seg23', 'seg34-fixed', 'seg41'];   // seg34-fixed: a one-frame emblem-like dot painted out (deroundel.py)
+const segs = process.env.SPIN_SEGS ? process.env.SPIN_SEGS.split(',') : ['seg12', 'seg23', 'seg34-fixed', 'seg41'];   // seg34-fixed: a one-frame emblem-like dot painted out (deroundel.py)
 const frames = [];   // raw RGB buffers at W x H
 let H = 0;
 for (const s of segs) {

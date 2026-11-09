@@ -34,7 +34,8 @@ void main(){
   vec3 o = mix(base, paint, m.r);
   // red trim (grille outline, splitter and skirt stripes) blacked out: dark, keeping a hint of its highlight
   float pk = max(base.r, max(base.g, base.b));
-  o = mix(o, vec3(.035) + smoothstep(.55, 1., pk) * .06, m.b * trim);
+  float red = smoothstep(.04, .16, base.r - max(base.g, base.b));   // only pixels that really are red, inside the trim zone
+  o = mix(o, vec3(.035) + smoothstep(.55, 1., pk) * .06, m.b * trim * red);
   // tint film: what is seen through the glass dims to the film's VLT; reflections on the outer surface stay
   vec3 refl = base * smoothstep(.35, .95, l) * .75;
   vec3 tinted = (base - refl) * vlt + refl * mix(.6, 1., vlt);
