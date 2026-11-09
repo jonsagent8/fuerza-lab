@@ -1,6 +1,7 @@
 import * as FX from './fx.js?v=turn1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn2';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn3';
 import { heroFx } from './hero-fx.js';
+import { Painter } from './paint.js?v=paint1';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -40,7 +41,20 @@ const stage = new Stage($('#stage'));
 const updateHeroFx = heroFx($('#heroFx'), $('.hero'));
 // tint and wrap open on a photoreal turntable of the car (assets/frames/spin: 360 frames, 1 degree each, built from four
 // Higgsfield segments by _hf/build-spin.mjs) that the visitor drags to rotate
-const SPIN = seq('spin'); SPIN.loop = true;
+const SPIN = seq('spinw'); SPIN.loop = true;
+// the spin is a satin-white car with clear glass; a WebGL painter (js/paint.js) lays the picked wrap and tint over it
+// using a per-frame paint/glass mask, so both stay on while the car turns. Without WebGL the white car just spins and
+// the swatches fall back to the side-view clips.
+const MASK = seq('spinw-mask'); MASK.loop = true;
+const painter = new Painter(), PAINT = painter.ok;
+if (PAINT) SPIN.paint = f => {
+  MASK.want(f);
+  const k = Math.floor(f); let i = SPIN.wrap(k), a = SPIN.frame(i), b = SPIN.frame(i + 1), t = f - k;
+  if (!a || !b) { i = SPIN.nearestIdx(f); if (i < 0) return null; a = b = SPIN.frame(i); t = 0; }
+  let ma = MASK.frame(i), mb = MASK.frame(i + 1) || ma;
+  if (!ma) { const j = MASK.nearestIdx(i); if (j < 0) return null; ma = mb = MASK.frame(j); }   // a degree or two off is invisible
+  return painter.draw(a, b, ma, mb || ma, t);
+};
 const media = $$('[data-media]').map(el => ({
   el, name: el.dataset.media, role: el.dataset.role || '', s: seq(el.dataset.media),
   fit: el.dataset.fit || 'cover', y: +(el.dataset.y || .4), focusX: +(el.dataset.focus || .5),
@@ -53,8 +67,8 @@ media.forEach(m => m.s.poster());
 const io = new IntersectionObserver(es => es.forEach(e => {
   if (!e.isIntersecting) return;
   const m = media.find(x => x.el === e.target);
-  if (m.s === SPIN && reduce) [0, 90, 180, 270].forEach(i => SPIN.img(i));   // reduced motion: only the four stills
-  else if (!reduce) m.s.load();
+  if (m.s === SPIN && reduce) [0, 90, 180, 270].forEach(i => { SPIN.img(i); MASK.img(i); });   // reduced motion: only the four stills
+  else if (!reduce) { m.s.load(); if (m.s === SPIN && PAINT) MASK.load(); }
   else if (reduce && !m.role) m.s.img(Math.round(m.still * (m.s.n - 1)));
 }), { rootMargin: '300% 0px' });   // start early; the shared queue still fills the on-screen clip first
 media.forEach(m => io.observe(m.el));
@@ -112,33 +126,51 @@ $$('.spin-arrows button').forEach(b => b.addEventListener('click', () => {
 }));
 document.documentElement.classList.toggle('reduce-motion', reduce);
 
-/* ---------------- tint: until tint can be shown on the spin, a shade plays the side-view tint clip ---------------- */
-// 70% VLT sits on an early frame, 5% on the last one
-const VLTS = [70, 50, 35, 20, 5];
+/* ---------------- tint: a shade darkens the spin's glass (painter); without WebGL it plays the side-view tint clip ---------------- */
 const tintFrac = v => (window.TINT_CURVE ? window.TINT_CURVE(v) : lerp(.15, 1, (70 - v) / 65));
 const tint = { f: 0, v: null, clip: false, tw: null };
 const tintFrame = v => tintFrac(v) * (seq('tint').n - 1);
+const film = { vlt: 1 };
 function pickVlt(v) {
-  const s = seq('tint'); tint.v = v; tint.tw && tint.tw.kill();
+  tint.v = v; tint.tw && tint.tw.kill();
+  if (PAINT) {   // the film slides from the old shade to the new one
+    if (reduce) { film.vlt = v / 100; painter.set(null, null, film.vlt); return; }
+    tint.tw = gsap.to(film, { vlt: v / 100, duration: .7, ease: 'power2.inOut', onUpdate: () => painter.set(null, null, film.vlt) });
+    return;
+  }
+  const s = seq('tint');
   if (reduce) { tint.clip = true; tint.f = tintFrame(v); s.img(Math.round(tint.f)); return; }
   s.load().then(() => { tint.clip = true; tint.tw = gsap.to(tint, { f: tintFrame(v), duration: .8, ease: 'power3.inOut' }); });
 }
 $$('.vlt .chip').forEach(ch => ch.addEventListener('click', () => { pickVlt(+ch.dataset.vlt); chipOn(+ch.dataset.vlt); }));
 const chipOn = v => $$('.vlt .chip').forEach(c => c.classList.toggle('on', +c.dataset.vlt === v));
 
-/* ---------------- wrap: until wraps can be shown on the spin, a swatch plays its side-view wrap clip ---------------- */
+/* ---------------- wrap: a swatch repaints the spin (painter); without WebGL it plays its side-view wrap clip ---------------- */
 const wrap = { clip: null, f: 0, tl: null, pick: -1 };
-const COLORS = $$('.swatch').map(b => ({ el: b, f: b.dataset.f, name: b.querySelector('span').textContent, clip: b.dataset.clip || null }));
-COLORS.forEach(c => {
+const COLORS = $$('.swatch').map(b => ({ el: b, k: b.dataset.k, f: b.dataset.f, c: b.dataset.c, name: b.querySelector('span').textContent, clip: b.dataset.clip || null }));
+if (PAINT) COLORS.forEach(c => { c.el.hidden = false; });   // every colour works on the painted spin, Portimao Blue included
+else COLORS.forEach(c => {
   if (!c.clip) return;
   const pre = () => seq(c.clip).load();
   c.el.addEventListener('pointerenter', pre); c.el.addEventListener('touchstart', pre, { passive: true }); c.el.addEventListener('focus', pre);
 });
 COLORS.forEach((c, i) => c.el.addEventListener('click', () => applyWrap(i)));
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const toHex = a => '#' + a.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+const coat = { rgb: hexRgb('#0b0b0e'), trim: 0 };
 function applyWrap(i) {
   const c = COLORS[i]; wrap.pick = i; wrap.tl && wrap.tl.kill();
   COLORS.forEach((o, j) => o.el.classList.toggle('on', j === i));
   $('#wrapNow').textContent = `${c.name.toUpperCase()} · ${c.f.toUpperCase()} FINISH`;
+  if (PAINT) {   // the new colour washes over the old one; the finish switches at the halfway point
+    // the red accents stay red on a red or black car; on every other colour they go gloss black
+    const to = hexRgb(c.c), from = coat.rgb.slice(), o = { t: 0 }, trimTo = ['red', 'factory', 'matte'].includes(c.k) ? 0 : 1, trimFrom = coat.trim;
+    if (reduce) { coat.rgb = to; coat.trim = trimTo; painter.set(c.c, c.f, null, trimTo); return; }
+    wrap.tl = gsap.to(o, { t: 1, duration: .7, ease: 'power2.inOut',
+      onUpdate: () => { coat.rgb = from.map((v, k) => lerp(v, to[k], o.t)); coat.trim = lerp(trimFrom, trimTo, o.t); painter.set(toHex(coat.rgb), o.t > .5 ? c.f : null, null, coat.trim); },
+      onComplete: () => { coat.rgb = to; coat.trim = trimTo; painter.set(c.c, c.f, null, trimTo); } });
+    return;
+  }
   if (!c.clip) { wrap.clip = null; return; }                          // factory black: back to the spin
   const s = seq(c.clip);
   if (reduce) { wrap.clip = c.clip; wrap.f = s.n - 1; s.img(s.n - 1); return; }
@@ -146,7 +178,8 @@ function applyWrap(i) {
   tl.add(() => { wrap.clip = c.clip; wrap.f = 0; }).to(wrap, { f: s.n - 1, duration: 1.8, ease: 'power2.inOut' });
   s.load().then(() => tl.play());
 }
-function showSpin(id) { if (id === 'wrap') { wrap.tl && wrap.tl.kill(); wrap.clip = null; } if (id === 'tint') { tint.tw && tint.tw.kill(); tint.clip = false; } }
+if (PAINT) painter.set('#0b0b0e', 'gloss', 1);   // factory black, no film
+function showSpin(id) { if (PAINT) return; if (id === 'wrap') { wrap.tl && wrap.tl.kill(); wrap.clip = null; } if (id === 'tint') { tint.tw && tint.tw.kill(); tint.clip = false; } }
 
 /* ---------------- scroll choreography ---------------- */
 const scenes = $$('[data-scene]'), nav = $('#nav');

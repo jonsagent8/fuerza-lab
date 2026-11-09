@@ -135,3 +135,8 @@
 .swatch[hidden] { display: none; }
 /* dragging the car shouldn't select the panel text */
 #tint .scene__sticky, #wrap .scene__sticky { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* seven wrap colours: one row on every screen (the grid was six wide, so Factory Black wrapped onto its own line) */
+.swatches { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+@media (max-width: 760px) { .swatches { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; } .swatch { padding: 8px 2px; } .swatch i { width: 32px; height: 32px; } }
+.swatch i { outline: 1px solid rgba(255,255,255,.14); outline-offset: 0; }   /* keeps the near-black swatches from vanishing into the panel */

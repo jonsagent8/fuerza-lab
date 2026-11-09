@@ -1,5 +1,5 @@
 // Image-sequence playback: Higgsfield clips exported to WebP frames, drawn to a <canvas> by frame index.
-import COUNTS from './frames-manifest.js?v=turn2';
+import COUNTS from './frames-manifest.js?v=turn3';
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 export const SMALL = matchMedia('(max-width: 767px)').matches;
@@ -78,6 +78,11 @@ class Seq {
   }
   trim() { for (let i = 0; i < this.n; i++) if (this.bmps[i] && !this.wanted(i)) { this.bmps[i].close && this.bmps[i].close(); this.bmps[i] = null; } }
   frame(i) { i = this.wrap(i); return i >= 0 && i < this.n ? this.bmps[i] || null : null; }
+  nearestIdx(f) {
+    const i = this.loop ? this.wrap(Math.round(f)) : clamp(Math.round(f), 0, this.n - 1);
+    for (let d = 0; d < this.n; d++) { if (this.bmps[this.wrap(i - d)]) return this.wrap(i - d); if (this.bmps[this.wrap(i + d)]) return this.wrap(i + d); }
+    return -1;
+  }
   nearest(f) {
     const i = this.loop ? this.wrap(Math.round(f)) : clamp(Math.round(f), 0, this.n - 1);
     for (let d = 0; d < this.n; d++) { const a = this.bmps[this.wrap(i - d)], b = this.bmps[this.wrap(i + d)]; if (a) return a; if (b) return b; }
@@ -169,8 +174,9 @@ export class Stage {
       g.fillStyle = '#060607';
       // between two clip frames, draw the earlier one and fade the next over it; if either isn't in yet, show the closest frame
       L.s.want(L.f);
-      const i0 = Math.floor(L.f), f0 = L.s.frame(i0), f1 = L.s.frame(i0 + 1), both = f0 && f1;
-      const im = both ? f0 : L.s.nearest(L.f); if (!im || L.alpha <= 0) continue;
+      // a clip with a painter (the recolorable spin) hands back one finished picture, in-between blend included
+      const i0 = Math.floor(L.f), f0 = L.s.frame(i0), f1 = L.s.frame(i0 + 1), both = !L.s.paint && f0 && f1;
+      const im = L.s.paint ? L.s.paint(L.f) : both ? f0 : L.s.nearest(L.f); if (!im || L.alpha <= 0) continue;
       const iw = im.width, ih = im.height, byWidth = L.fit === 'width' && ch > cw;
       const k = (byWidth ? cw / iw * 1.18 : Math.max(cw / iw, ch / ih)) * (L.scale || 1), w = iw * k, h = ih * k;
       const x = byWidth ? (cw - w) / 2 : (cw - w) * (L.focusX ?? .5), y = byWidth ? (ch - h) * (L.y ?? .4) : (ch - h) / 2;
