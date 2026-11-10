@@ -1,7 +1,7 @@
 // Live window tint (and colour cross-fades) for the turntable spin. Every wrap colour has its own rendered spin
 // (assets/frames/spin-<colour>), so the paint, reflections and lighting are real footage; this WebGL pass only
 //  - darkens the window glass to the picked film (per-frame glass mask, G channel, from _hf/glass-transfer.mjs),
-//  - optionally lays a red chameleon film on the windshield only (R channel, from _hf/windshield.mjs) at the same VLT, and
+//  - optionally lays a red chameleon film on the windshield only (R channel, from _hf/windshield.mjs): vivid at any shade, the VLT only sets how much cabin shows through, and
 //  - blends two pictures while one colour fades into the next.
 // With no film and no fade the stage draws the plain frame and this never runs.
 const VS = `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x * .5 + .5, .5 - p.y * .5); gl_Position = vec4(p, 0., 1.); }`;
@@ -18,9 +18,9 @@ vec3 tint(vec3 base, vec2 m){
   // the cabin still shows faintly through it and the light-strip reflections ride on top
   float s = .5 + .5 * sin(uv.x * 7. - uv.y * 3. + ph);
   vec3 film = mix(vec3(.62, .02, .04), vec3(1., .16, .24), s) * (.5 + .45 * s);   // deep red to a glowing coral-red
-  // the film has the same VLT as the side windows: what comes through dims exactly like theirs, the outer reflections
-  // stay (as on the sides), and a faint red sheen keeps it reading as chameleon even at 5%
-  vec3 ch = ((base - refl) * .3 + film * (.7 + 1.1 * l)) * vlt + refl * mix(.6, 1., vlt) * vec3(1., .7, .72) + film * .1 * (1. - vlt);
+  // the film's colour stays vivid at every shade; the VLT (same as the side windows) only sets how much of the cabin
+  // shows through it, and the outer reflections ride on top
+  vec3 ch = film * (.75 + .9 * l) + (base - refl) * .35 * vlt + refl * .55;
   return mix(c, ch, m.x * cham);
 }
 void main(){
