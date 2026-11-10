@@ -2,7 +2,7 @@
 import COUNTS from './frames-manifest.js?v=turn5';
 // bump when a sequence's frames are re-rendered in place (the frames are cached for an hour)
 const FRAME_VER = { 'spin-black': 'glass1' };
-for (const c of ['black', 'red', 'blue', 'graphite', 'pearl', 'chrome', 'matte']) FRAME_VER[`spin-${c}-mask`] = 'ws7';   // + windshield (R)
+for (const c of ['black', 'red', 'blue', 'graphite', 'pearl', 'chrome', 'matte']) FRAME_VER[`spin-${c}-mask`] = 'ws8';   // + windshield (R)
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 export const SMALL = matchMedia('(max-width: 767px)').matches;
