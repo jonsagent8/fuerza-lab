@@ -135,7 +135,10 @@ const arrivalIntro = { v: reduce ? 1 : 0 };   // the bay lights come on by thems
 
 /* ---------------- spin: drag / swipe sideways on tint + wrap turns the car (loops both ways, with inertia) ---------------- */
 // frame index grows as the near side of the car moves left, so dragging left turns it that way
-const spin = { f: 0, vel: 0, drag: false };
+const spin = { f: 0, vel: 0, drag: false, turn: 0 };   // turn: the scroll-driven part of the angle (see TURN)
+// scrolling into tint turns the car from nearly head-on to the three-quarter view with more of the side (frame 0),
+// finishing exactly where the page settles on it
+const TURN = 18;
 const SPIN_PER_PX = () => SPIN.n / Math.max(600, innerWidth * (mobile ? 1.5 : 1.1));   // a full turn ≈ one and a bit screen widths
 for (const el of [$('#tint'), $('#wrap')]) {
   let x0 = null, t0 = 0, id = null;
@@ -192,7 +195,7 @@ const COLORS = $$('.swatch').map(b => ({ el: b, k: b.dataset.k, f: b.dataset.f, 
 COLORS.forEach(c => {
   c.el.hidden = !c.spin;
   // start fetching the frames around the current angle as soon as a finger or pointer comes near the swatch
-  const pre = () => { if (c.spin && c.spin !== look.cur) { const i = SPIN.wrap(Math.round(spin.f)); for (let d = -6; d <= 6; d++) c.spin.s.img(SPIN.wrap(i + d)); } };
+  const pre = () => { if (c.spin && c.spin !== look.cur) { const i = SPIN.wrap(Math.round(spin.f + spin.turn)); for (let d = -6; d <= 6; d++) c.spin.s.img(SPIN.wrap(i + d)); } };
   c.el.addEventListener('pointerenter', pre); c.el.addEventListener('touchstart', pre, { passive: true }); c.el.addEventListener('focus', pre);
 });
 COLORS.forEach((c, i) => c.el.addEventListener('click', () => applyWrap(i)));
@@ -203,7 +206,7 @@ function applyWrap(i) {
   if (!c.spin || c.spin === look.cur) return;
   if (look.prev) endFade();                            // a fade still running: settle it first
   look.prev = look.cur; look.cur = c.spin; look.t = reduce || !PAINT ? 1 : 0; look.last = performance.now();
-  const a = SPIN.wrap(Math.round(spin.f));
+  const a = SPIN.wrap(Math.round(spin.f + spin.turn));
   for (let d = -8; d <= 8; d++) c.spin.s.img(SPIN.wrap(a + d));   // this angle first, then the rest of the turn
   if (reduce) [0, 90, 180, 270].forEach(k => SPIN.img(k)); else SPIN.load();
   if (film.vlt < .999) c.spin.m.load();
@@ -252,13 +255,14 @@ function tick() {
   // stage: frame targets for every clip, then which one (or two, mid-dissolve) is on screen
   const dt = gsap.ticker.deltaRatio(60) / 60, ease = 1 - Math.exp(-dt * 9), now = gsap.ticker.time;
   if (!spin.drag && Math.abs(spin.vel) > .01) { spin.f += spin.vel * dt * 60; spin.vel *= Math.pow(.04, dt); } else if (!spin.drag) spin.vel = 0;
+  if (M.tint && !reduce) spin.turn = -TURN * (1 - ss(M.tint.top - .8 * vh, M.tint.top, y));   // over the part of the dissolve where the car is visible
   for (const m of media) {
     const p = clamp((y - m.top) / Math.max(1, m.scrubEnd - m.top));
     m.prog = clamp((y - m.top) / Math.max(1, m.h - vh));
     let s = m.s, f;
     if (m.name === 'arrival') f = lerp(0, .5, arrivalIntro.v) + .5 * p;   // rests on frame 96: paint lit, headlights still off
     else if (m.role === 'tint' && tint.clip) { s = seq('tint'); f = tint.f / Math.max(1, s.n - 1); }
-    else if (m.role === 'tint' || m.role === 'wrap') { s = SPIN; f = spin.f / (SPIN.n - 1); }
+    else if (m.role === 'tint' || m.role === 'wrap') { s = SPIN; f = (spin.f + spin.turn) / (SPIN.n - 1); }
     else f = reduce ? m.still : p;
     m.cur = s;
     const target = f * (s.n - 1);
@@ -361,7 +365,7 @@ gsap.ticker.add(() => {
 if (/[?&]debug\b/.test(location.search)) {
   const d = document.createElement('pre');
   d.style.cssText = 'position:fixed;left:8px;top:80px;z-index:999;margin:0;padding:6px 8px;font:11px/1.35 ui-monospace,monospace;color:#0f0;background:rgba(0,0,0,.75);pointer-events:none';
-  document.body.appendChild(d);
+  document.body.appendChild(d); window.__spin = spin;
   let frames = 0, fps = 0, t0 = performance.now();
   gsap.ticker.add(() => {
     frames++; const now = performance.now(); if (now - t0 > 500) { fps = Math.round(frames * 1000 / (now - t0)); frames = 0; t0 = now; }
