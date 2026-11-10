@@ -1,5 +1,7 @@
 // Image-sequence playback: Higgsfield clips exported to WebP frames, drawn to a <canvas> by frame index.
 import COUNTS from './frames-manifest.js?v=turn5';
+// bump when a sequence's frames are re-rendered in place (the frames are cached for an hour)
+const FRAME_VER = { 'spin-black': 'glass1' };
 
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 export const SMALL = matchMedia('(max-width: 767px)').matches;
@@ -24,7 +26,7 @@ class Seq {
   wrap(i) { return this.loop ? ((i % this.n) + this.n) % this.n : i; }
   // signed distance from frame a to frame b, the short way round on a loop
   dist(a, b) { let d = b - a; if (this.loop) { d = ((d % this.n) + this.n) % this.n; if (d > this.n / 2) d -= this.n; } return d; }
-  src(i) { return `assets/frames/${this.name}/full/${String(i + 1).padStart(4, '0')}.webp`; }
+  src(i) { return `assets/frames/${this.name}/full/${String(i + 1).padStart(4, '0')}.webp${FRAME_VER[this.name] ? '?v=' + FRAME_VER[this.name] : ''}`; }
   // ask for frame i now (jumps the download queue); .done resolves once it is downloaded
   img(i) {
     let sl = this.slots[i];
