@@ -1,7 +1,7 @@
 import * as FX from './fx.js?v=turn1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn8';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn11';
 import { heroFx } from './hero-fx.js';
-import { Painter } from './paint.js?v=paint9';
+import { Painter } from './paint.js?v=paint10';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
