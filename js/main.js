@@ -1,5 +1,5 @@
 import * as FX from './fx.js?v=turn1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn11';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn12';
 import { heroFx } from './hero-fx.js';
 import { Painter } from './paint.js?v=paint10';
 
