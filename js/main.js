@@ -1,7 +1,7 @@
 import * as FX from './fx.js?v=turn1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn7';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn8';
 import { heroFx } from './hero-fx.js';
-import { Painter } from './paint.js?v=paint4';
+import { Painter } from './paint.js?v=paint5';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -55,6 +55,7 @@ const look = { cur: SPINS.black, prev: null, t: 1, last: 0 };   // prev fades ou
 const FADE_S = .6;
 // closest angle to i where this spin has its frame (and its glass mask, when a film is on) decoded
 // (a frame with its mask only within a couple of degrees; further off it is better to show this angle without the film)
+const maskNear = (L, j, n) => { for (let d = 0; d <= n; d++) { const m = L.m.frame(j + d) || L.m.frame(j - d); if (m) return m; } return null; };
 function pick(L, i, needMask) {
   const ok = j => L.s.frame(j) && (!needMask || L.m.frame(j));
   for (let d = 0, n = needMask ? 3 : 180; d < n; d++) { if (ok(i + d)) return L.s.wrap(i + d); if (ok(i - d)) return L.s.wrap(i - d); }
@@ -76,16 +77,21 @@ const SPIN = {
       const P = look.prev; let b = pick(P, i, tinted); if (b < 0) b = pick(P, i, false);
       const ready = a >= 0 && Math.abs(SPIN_DIST(a, i)) <= 2;
       if (!ready && b >= 0) {   // new colour not in yet at this angle: keep showing the old one
-        const fb = P.s.frame(b), mb = tinted && P.m.frame(b);
+        const fb = P.s.frame(b), mb = tinted && maskNear(P, b, 12);
         return mb ? painter.draw(fb, fb, mb, mb, 0, film.vlt, film.cham, chamPh(b)) : fb;
       }
       if (ready) look.t = Math.min(1, look.t + dt / FADE_S);
       if (!ready || look.t >= 1 || !PAINT || b < 0) endFade();
-      else return painter.draw(P.s.frame(b), L.s.frame(a), tinted ? P.m.frame(b) : null, tinted ? L.m.frame(a) : null, ss(0, 1, look.t), film.vlt, film.cham, chamPh(a));
+      else return painter.draw(P.s.frame(b), L.s.frame(a), tinted ? maskNear(P, b, 12) : null, tinted ? maskNear(L, a, 12) : null, ss(0, 1, look.t), film.vlt, film.cham, chamPh(a));
     }
     if (a < 0) return null;
     if (!tinted) return L.s.frame(a);
-    const fa = L.s.frame(a), ma = L.m.frame(a);
+    // mid-spin the exact mask may not be decoded yet: a neighbouring angle's mask is a pixel or two off, which can't be
+    // seen while the car turns, whereas dropping the film for a frame flashes the glass
+    const fa = L.s.frame(a), ma = maskNear(L, a, 12);
+    if (window.__fzPaint != null) { window.__fzPaint++; if (!ma) window.__fzMiss++; }   // test hook (_hf/flash-test.mjs)
+    if (!ma) return this.held != null && Math.abs(SPIN_DIST(this.held, a)) <= 24 ? painter.c : fa;   // none near: hold the last filmed picture a tick
+    this.held = a;
     return painter.draw(fa, fa, ma, ma, 0, film.vlt, film.cham, chamPh(i));
   },
 };

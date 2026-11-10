@@ -145,7 +145,7 @@ function pickDecode() {
     for (let d = -BEHIND; d <= AHEAD; d++) {
       const i = q.wrap(q.c + d * q.dir); if (i < 0 || i >= q.n || q.bmps[i] || q.busy.has(i)) continue;
       const b = q.blobs[i]; if (!b || b === 'err') continue;
-      const sc = d < 0 ? -d * 2.5 : d;
+      const sc = (d < 0 ? -d * 2.5 : d) * (q.name.endsWith('-mask') ? .3 : 1);   // glass masks are tiny: decode them first
       if (sc < bs) { bs = sc; best = q; bi = i; }
     }
   }
