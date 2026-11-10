@@ -151,6 +151,13 @@ for (const el of [$('#tint'), $('#wrap')]) {
     x0 = e.clientX; t0 = now;
   });
   const end = e => { if (x0 == null || (e && e.pointerId !== id)) return; x0 = null; spin.drag = false; el.classList.remove('spinning'); if (performance.now() - t0 > 120) spin.vel = 0; };   // finger rested before letting go: no fling
+  // phones: a swipe that starts sideways keeps spinning even if the finger drifts up or down (the page doesn't scroll away)
+  let tx = 0, ty = 0, lock = null;
+  el.addEventListener('touchstart', e => { const t = e.touches[0]; tx = t.clientX; ty = t.clientY; lock = e.touches.length > 1 || reduce || e.target.closest('button, a') ? 'y' : null; }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (lock == null) { const t = e.touches[0], dx = Math.abs(t.clientX - tx), dy = Math.abs(t.clientY - ty); if (Math.max(dx, dy) < 6) return; lock = dx > dy * .7 ? 'x' : 'y'; }
+    if (lock === 'x' && e.cancelable) e.preventDefault();
+  }, { passive: false });
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
 }
 // reduced motion: no free spinning, the arrows step a quarter turn between the four keyframes
@@ -267,9 +274,10 @@ function tick() {
     par.x += ((reduce ? 0 : S.mx * -.008) - par.x) * ease * .5; par.y += ((reduce ? 0 : S.my * -.006) - par.y) * ease * .5;
     let layers;
     if (reduce) layers = [layer(t < .5 ? P0 : A, 1, 1)];
+    else if (t < 1 && P0.cur === A.cur) layers = [layer(A, 1, breathe)];   // tint -> wrap shows the same spinning car: hold it still
     else if (t < 1) layers = [layer(P0, 1, breathe * (1 + .07 * t)), layer(A, t, breathe * (1.07 - .07 * t))];   // push through into the next clip
     else layers = [layer(A, 1, breathe)];
-    stage.render(layers, { dx: par.x, dy: par.y, flare: reduce || t >= 1 ? 0 : .22 * Math.sin(Math.PI * t) });
+    stage.render(layers, { dx: par.x, dy: par.y, flare: reduce || t >= 1 || P0.cur === A.cur ? 0 : .22 * Math.sin(Math.PI * t) });
     updateHeroFx(A === M.arrival && t >= 1 ? stage.rect : null, A.f);
   } else updateHeroFx(null, 0);
 
@@ -309,6 +317,45 @@ function tick() {
   $('#progress').style.transform = `scaleX(${clamp(y / (document.documentElement.scrollHeight - vh))})`;
 }
 gsap.ticker.add(tick);
+
+/* ---------------- settle: stopping near the tint / wrap car eases the page onto it ---------------- */
+// rest = the stretch of each spin scene where the car is still and only its own panel shows. Scrolling that stops in a
+// dissolve or a panel hand-off just outside it glides to the edge of the nearest rest (in the direction you were going)
+const settle = { y: null, dir: 1, moved: 0, touch: false, busy: 0 };
+addEventListener('touchstart', () => { settle.touch = true; }, { passive: true });
+addEventListener('touchend', () => { settle.touch = false; settle.moved = performance.now(); }, { passive: true });
+addEventListener('touchcancel', () => { settle.touch = false; }, { passive: true });
+function rests(vh) {
+  const R = [];
+  for (const m of [M.tint, M.wrap]) {
+    if (!m) continue;
+    const span = Math.max(1, m.h - vh), i = media.indexOf(m), n = media[i + 1];
+    let hi = m.top + .84 * span;                                              // own panel starts fading out
+    if (m.next && m.next !== M.tint && m.next !== M.wrap) hi = Math.min(hi, m.next.top - BLEND * vh);   // next clip starts dissolving in (tint -> wrap is the same car)
+    if (n && n.el.querySelector('.panel')) hi = Math.min(hi, n.top - .35 * Math.max(1, n.h - vh));   // next panel starts fading in
+    R.push([m.top, Math.max(m.top, hi)]);
+  }
+  return R;
+}
+gsap.ticker.add(() => {
+  const y = lenis && !mobile ? lenis.animatedScroll : scrollY, vh = innerHeight, now = performance.now();
+  if (settle.y == null) { settle.y = y; return; }
+  if (Math.abs(y - settle.y) > .5) { settle.dir = Math.sign(y - settle.y); settle.moved = now; }
+  settle.y = y;
+  if (settle.touch || spin.drag || now - settle.moved < 220 || now < settle.busy) return;
+  let best = null;
+  for (const [lo, hi] of rests(vh)) {
+    if (y >= lo - 1 && y <= hi + 1) return;                                   // already resting on a car
+    const edge = y < lo ? lo : hi, d = Math.abs(edge - y), ahead = Math.sign(edge - y) === settle.dir;
+    if (d > .9 * vh || (!ahead && d > .3 * vh)) continue;
+    const score = d - (ahead ? .3 * vh : 0);
+    if (!best || score < best.score) best = { edge, score };
+  }
+  if (!best) return;
+  settle.busy = now + 1200; settle.moved = now;
+  if (lenis && !mobile) lenis.scrollTo(best.edge, { duration: .8, easing: t => 1 - Math.pow(1 - t, 3) });
+  else window.scrollTo({ top: best.edge, behavior: reduce ? 'auto' : 'smooth' });
+});
 
 // ?debug → tiny on-screen readout for diagnosing on a real phone
 if (/[?&]debug\b/.test(location.search)) {
