@@ -13,14 +13,15 @@ vec3 tint(vec3 base, vec2 m){
   // what is seen through the glass dims to the film's VLT; reflections on the outer surface stay
   float l = dot(base, vec3(.3, .59, .11));
   vec3 refl = base * smoothstep(.35, .95, l) * .75;
-  vec3 c = mix(base, (base - refl) * vlt + refl * mix(.6, 1., vlt), m.y);
-  // chameleon windshield: an iridescent red film that shifts toward magenta across the glass and as the car turns;
-  // the cabin still shows faintly through it and the light-strip reflections ride on top
+  // light films read nearly clear and dark ones near black, so the steps show even on a phone-sized car
+  vec3 through = (base - refl) * vlt * (1. + .5 * vlt);   // what the film lets through: the same for every window
+  vec3 c = mix(base, through + refl * mix(.6, 1., vlt), m.y);
+  // chameleon windshield: the cabin shows through exactly as much as through the side windows (same VLT), seen through
+  // red; the vivid red film fills in what the shade blocks, so 70% is red with the cabin as clear as the sides and 5% solid red
   float s = .5 + .5 * sin(uv.x * 7. - uv.y * 3. + ph);
   vec3 film = mix(vec3(.62, .02, .04), vec3(1., .16, .24), s) * (.5 + .45 * s);   // deep red to a glowing coral-red
-  // the film's colour stays vivid at every shade; the VLT (same as the side windows) only sets how much of the cabin
-  // shows through it, and the outer reflections ride on top
-  vec3 ch = film * (.75 + .9 * l) + (base - refl) * .35 * vlt + refl * .55;
+  float T = vlt * (1. + .5 * vlt);   // the sides' transmission
+  vec3 ch = through * vec3(2.3, .62, .66) + film * (.28 + .9 * (1. - T)) * (.7 + .8 * l) + refl * mix(.6, 1., vlt);
   return mix(c, ch, m.x * cham);
 }
 void main(){
