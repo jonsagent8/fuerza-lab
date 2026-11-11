@@ -237,7 +237,16 @@ function showSpin() {}
 /* ---------------- scroll choreography ---------------- */
 const scenes = $$('[data-scene]'), nav = $('#nav');
 let offs = [];
+// phones: park the hero car (frame 97: car spans 18%–80% of the picture height) just above the reviews
+function placeHeroCar() {
+  const hr = $('.hero__reviews'), A = M.arrival;
+  if (!hr || !A || innerHeight <= innerWidth || getComputedStyle(hr).position !== 'absolute') { if (A) A.y = +(A.el.dataset.y || .4); return; }
+  const h = innerWidth * 1.18 * 1080 / 1920;
+  const top = innerHeight - parseFloat(getComputedStyle(hr).bottom) - hr.offsetHeight;
+  A.y = Math.min(1, Math.max(0, (top - 10 - .8 * h) / (innerHeight - h)));
+}
 function measure() {
+  placeHeroCar();
   const top = el => el.getBoundingClientRect().top + scrollY;
   offs = scenes.map(el => ({ top: top(el), h: el.offsetHeight }));
   media.forEach(m => { m.top = top(m.el); m.h = m.el.offsetHeight; });
@@ -254,6 +263,7 @@ function measure() {
 const BLEND = 1.4;
 // on touch devices the URL bar showing/hiding fires height-only resizes mid-scroll; re-measuring then makes the page jump
 let lastW = innerWidth;
+if (document.fonts) document.fonts.ready.then(placeHeroCar);
 measure(); window.addEventListener('resize', () => { measure(); if (mobile && innerWidth === lastW) return; lastW = innerWidth; ScrollTrigger.refresh(); }); window.addEventListener('load', measure);
 
 let hudCache = '';
