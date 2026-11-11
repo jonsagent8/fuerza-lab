@@ -181,6 +181,10 @@ document.documentElement.classList.toggle('reduce-motion', reduce);
 { const qs = $$('.hero__quotes .rv'); let k = 0;
   if (!reduce && qs.length > 1) setInterval(() => { if (document.hidden) return; qs[k].classList.remove('on'); k = (k + 1) % qs.length; qs[k].classList.add('on'); }, 5500); }
 
+/* ---------------- reviews section: the first six show, the button opens the rest ---------------- */
+{ const sec = $('#reviews'), more = $('#reviewsMore');
+  if (sec && more) more.addEventListener('click', () => { sec.classList.add('open'); more.setAttribute('aria-expanded', 'true'); measure(); if (window.ScrollTrigger) ScrollTrigger.refresh(); }); }
+
 /* ---------------- tint: a shade darkens the spin's glass (painter); without WebGL it plays the side-view tint clip ---------------- */
 const tintFrac = v => (window.TINT_CURVE ? window.TINT_CURVE(v) : lerp(.15, 1, (70 - v) / 65));
 const tint = { f: 0, v: null, clip: false, tw: null };
