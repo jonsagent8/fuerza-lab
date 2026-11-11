@@ -189,6 +189,7 @@ function pickVlt(v) {
     tint.tw = gsap.to(film, { vlt: v / 100, duration: .7, ease: 'power2.inOut' });
     return;
   }
+  if (v === 100) { tint.clip = false; return; }   // no film: back to the plain spin
   const s = seq('tint');
   if (reduce) { tint.clip = true; tint.f = tintFrame(v); s.img(Math.round(tint.f)); return; }
   s.load().then(() => { tint.clip = true; tint.tw = gsap.to(tint, { f: tintFrame(v), duration: .8, ease: 'power3.inOut' }); });
@@ -325,7 +326,7 @@ function tick() {
     'GLOSS 98 GU · PAINT 0 DEFECTS',
     pw < .13 ? 'ROAD FILM DETECTED' : pw < .45 ? `FOAM ${Math.round(ss(.13, .4, pw) * 100)}% · pH 7.0` : pw < .8 ? `RINSE ${Math.round(ss(.45, .8, pw) * 100)}% · DEIONIZED` : 'SPOT-FREE · DRY',
     `STEAM ${Math.round(ss(.05, .2, P[2]) * (1 - ss(.8, .95, P[2])) * 100)}% · 110 °C`,
-    `VLT ${vltShown}% · FRONT ${ws.v === 100 ? 'CLEAR' : ws.v + '%'}`,
+    `${vltShown === 100 ? 'SIDES CLEAR' : `VLT ${vltShown}%`} · FRONT ${ws.v === 100 ? 'CLEAR' : ws.v + '%'}`,
     `WRAP ${wrap.pick >= 0 ? COLORS[wrap.pick].name.toUpperCase() : '—'}`,
     P[5] < .5 ? `FILM COVERAGE ${Math.round(ss(.06, .5, P[5]) * 100)}% · 8 MIL` : 'IMPACTS ABSORBED · PAINT INTACT',
   ][cur];
