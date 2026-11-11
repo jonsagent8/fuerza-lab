@@ -173,13 +173,12 @@ html.has-cursor .cursor { display: block; }
 .vlt__readout b { font: 800 64px/1 var(--f-display); letter-spacing: -.04em; font-variant-numeric: tabular-nums; min-width: 2ch; }
 .vlt__pct { font: 300 28px var(--f-display); color: var(--muted); }
 .vlt__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.vlt__lbl { font-size: 11px; color: var(--muted); letter-spacing: .2em; text-transform: uppercase; margin: 4px 0 -6px; }
+.vlt__lbl span { color: var(--fg); margin-left: 6px; }
+.vlt__front { display: grid; gap: 14px; }
 .chip { font: 500 13px var(--f-mono); color: var(--fg); padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.03); transition: background-color .3s, color .3s, border-color .3s; }
 .chip:hover { border-color: var(--cyan); }
 .chip.on { background: var(--fg); color: var(--ink); border-color: var(--fg); }
-.chip--cham { justify-self: start; display: inline-flex; align-items: center; gap: 9px; }
-.chip--cham i { width: 14px; height: 14px; border-radius: 50%; background: conic-gradient(from 200deg, #ff1e2d, #e0216f, #b02adf, #ff3a5c, #ff1e2d); box-shadow: 0 0 10px rgba(255,40,90,.55); }
-.chip--cham.on { background: linear-gradient(100deg, #e5162a, #c4207a); color: #fff; border-color: transparent; }
-.chip--cham.on i { background: #fff; box-shadow: none; }
 
 .swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .swatch { display: grid; justify-items: center; gap: 8px; padding: 10px 4px; border: 1px solid transparent; border-radius: 14px; background: none; color: var(--muted); font: 500 10.5px var(--f-mono); letter-spacing: .04em; text-align: center; transition: border-color .3s, color .3s, background-color .3s; }

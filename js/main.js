@@ -1,7 +1,7 @@
 import * as FX from './fx.js?v=turn1';
 import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn17';
 import { heroFx } from './hero-fx.js';
-import { Painter } from './paint.js?v=paint10';
+import { Painter } from './paint.js?v=ws1';
 
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -48,9 +48,8 @@ const SPINS = Object.fromEntries(['black', 'red', 'blue', 'graphite', 'pearl', '
   const s = seq('spin-' + k), m = seq('spin-' + k + '-mask'); s.loop = m.loop = true; return [k, { k, s, m }];
 }));
 const painter = new Painter(), PAINT = painter.ok;
-const film = { vlt: 1, cham: 0 };   // cham: chameleon windshield, 0..1 (fades in)
-const filmOn = () => film.vlt < .999 || film.cham > .001;
-const chamPh = i => i / 360 * Math.PI * 4;   // the chameleon's hue drifts as the car turns
+const film = { vlt: 1, wvlt: 1 };   // vlt: side + rear windows, wvlt: windshield (0..1, 1 = no film)
+const filmOn = () => film.vlt < .999 || film.wvlt < .999;
 const look = { cur: SPINS.black, prev: null, t: 1, last: 0 };   // prev fades out while cur fades in (t: 0 -> 1)
 const FADE_S = .6;
 // closest angle to i where this spin has its frame (and its glass mask, when a film is on) decoded
@@ -78,11 +77,11 @@ const SPIN = {
       const ready = a >= 0 && Math.abs(SPIN_DIST(a, i)) <= 2;
       if (!ready && b >= 0) {   // new colour not in yet at this angle: keep showing the old one
         const fb = P.s.frame(b), mb = tinted && maskNear(P, b, 12);
-        return mb ? painter.draw(fb, fb, mb, mb, 0, film.vlt, film.cham, chamPh(b)) : fb;
+        return mb ? painter.draw(fb, fb, mb, mb, 0, film.vlt, film.wvlt) : fb;
       }
       if (ready) look.t = Math.min(1, look.t + dt / FADE_S);
       if (!ready || look.t >= 1 || !PAINT || b < 0) endFade();
-      else return painter.draw(P.s.frame(b), L.s.frame(a), tinted ? maskNear(P, b, 12) : null, tinted ? maskNear(L, a, 12) : null, ss(0, 1, look.t), film.vlt, film.cham, chamPh(a));
+      else return painter.draw(P.s.frame(b), L.s.frame(a), tinted ? maskNear(P, b, 12) : null, tinted ? maskNear(L, a, 12) : null, ss(0, 1, look.t), film.vlt, film.wvlt);
     }
     if (a < 0) return null;
     if (!tinted) return L.s.frame(a);
@@ -92,7 +91,7 @@ const SPIN = {
     if (window.__fzPaint != null) { window.__fzPaint++; if (!ma) window.__fzMiss++; }   // test hook (_hf/flash-test.mjs)
     if (!ma) return this.held != null && Math.abs(SPIN_DIST(this.held, a)) <= 24 ? painter.c : fa;   // none near: hold the last filmed picture a tick
     this.held = a;
-    return painter.draw(fa, fa, ma, ma, 0, film.vlt, film.cham, chamPh(i));
+    return painter.draw(fa, fa, ma, ma, 0, film.vlt, film.wvlt);
   },
 };
 const SPIN_DIST = (a, b) => { let d = ((b - a) % 360 + 360) % 360; return d > 180 ? d - 360 : d; };
@@ -196,16 +195,16 @@ function pickVlt(v) {
 }
 $$('.vlt .chip[data-vlt]').forEach(ch => ch.addEventListener('click', () => { pickVlt(+ch.dataset.vlt); chipOn(+ch.dataset.vlt); }));
 const chipOn = v => $$('.vlt .chip[data-vlt]').forEach(c => c.classList.toggle('on', +c.dataset.vlt === v));
-// chameleon windshield: a red iridescent film on the front glass only; the other windows keep the picked VLT
-const chamBtn = $('#chamFront');
-if (!PAINT) chamBtn.hidden = true;   // the fallback tint clip can't show it
-chamBtn.addEventListener('click', () => {
-  const on = chamBtn.getAttribute('aria-pressed') !== 'true';
-  chamBtn.setAttribute('aria-pressed', on); chamBtn.classList.toggle('on', on);
+// windshield: its own, lighter shade (painter only; the fallback tint clip can't show it)
+const ws = { v: 100, tw: null };
+if (!PAINT) $('#wsRow').hidden = true;
+$$('.vlt .chip[data-wvlt]').forEach(ch => ch.addEventListener('click', () => {
+  const v = ws.v = +ch.dataset.wvlt; ws.tw && ws.tw.kill();
+  $$('.vlt .chip[data-wvlt]').forEach(c => c.classList.toggle('on', c === ch));
+  $('#wsNum').textContent = v === 100 ? 'clear' : v + '%';
   look.cur.m.load();
-  gsap.killTweensOf(film, 'cham');
-  if (reduce) film.cham = on ? 1 : 0; else gsap.to(film, { cham: on ? 1 : 0, duration: .7, ease: 'power2.inOut' });
-});
+  if (reduce) film.wvlt = v / 100; else ws.tw = gsap.to(film, { wvlt: v / 100, duration: .7, ease: 'power2.inOut' });
+}));
 
 /* ---------------- wrap: a swatch switches to that colour's own rendered spin, at the same angle ---------------- */
 const wrap = { pick: -1 };
@@ -326,7 +325,7 @@ function tick() {
     'GLOSS 98 GU · PAINT 0 DEFECTS',
     pw < .13 ? 'ROAD FILM DETECTED' : pw < .45 ? `FOAM ${Math.round(ss(.13, .4, pw) * 100)}% · pH 7.0` : pw < .8 ? `RINSE ${Math.round(ss(.45, .8, pw) * 100)}% · DEIONIZED` : 'SPOT-FREE · DRY',
     `STEAM ${Math.round(ss(.05, .2, P[2]) * (1 - ss(.8, .95, P[2])) * 100)}% · 110 °C`,
-    `VLT ${vltShown}% · ${film.cham > .5 ? 'CHAMELEON FRONT' : 'UV BLOCK 99%'}`,
+    `VLT ${vltShown}% · FRONT ${ws.v === 100 ? 'CLEAR' : ws.v + '%'}`,
     `WRAP ${wrap.pick >= 0 ? COLORS[wrap.pick].name.toUpperCase() : '—'}`,
     P[5] < .5 ? `FILM COVERAGE ${Math.round(ss(.06, .5, P[5]) * 100)}% · 8 MIL` : 'IMPACTS ABSORBED · PAINT INTACT',
   ][cur];
