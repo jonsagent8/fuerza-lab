@@ -202,7 +202,6 @@ if (!PAINT) $('#wsRow').hidden = true;
 $$('.vlt .chip[data-wvlt]').forEach(ch => ch.addEventListener('click', () => {
   const v = ws.v = +ch.dataset.wvlt; ws.tw && ws.tw.kill();
   $$('.vlt .chip[data-wvlt]').forEach(c => c.classList.toggle('on', c === ch));
-  $('#wsNum').textContent = v === 100 ? 'clear' : v + '%';
   look.cur.m.load();
   if (reduce) film.wvlt = v / 100; else ws.tw = gsap.to(film, { wvlt: v / 100, duration: .7, ease: 'power2.inOut' });
 }));
@@ -308,8 +307,11 @@ function tick() {
   steps.forEach(li => li.classList.toggle('on', pw >= +li.dataset.at));
 
   // tint readout follows the film
-  const vltShown = tint.v == null ? 100 : tint.v;
+  // tint readouts count along with the film as it slides to the new shade
+  const vltShown = PAINT ? Math.round(film.vlt * 100) : tint.v == null ? 100 : tint.v;
   if ($('#vltNum').textContent !== String(vltShown)) $('#vltNum').textContent = vltShown;
+  const wsShown = Math.round(film.wvlt * 100), wsTxt = wsShown === 100 ? 'clear' : wsShown + '%';
+  if ($('#wsNum').textContent !== wsTxt) $('#wsNum').textContent = wsTxt;
 
   // correction: before/after tags trade places as the light sweeps the panel
   if (M.correction) { const c = M.correction.prog; tags.before.style.opacity = 1 - ss(.35, .55, c); tags.after.style.opacity = ss(.55, .75, c); }
