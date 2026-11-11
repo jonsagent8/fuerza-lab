@@ -186,6 +186,13 @@ html.has-cursor .cursor { display: block; }
   #tint .vlt { gap: 8px; }
   #tint .vlt__readout b { font-size: 36px; }
   #tint .vlt__pct { font-size: 20px; }
+  /* the wrap panel tightens the same way as tint */
+  #wrap .panel { gap: 10px; padding: 18px 20px; }
+  #wrap .panel > p:not(.eyebrow):not(.note) { display: none; }
+  #wrap .panel__title { font-size: 22px; }
+  /* hero: the rating stays, the rotating quote would run into the scroll cue */
+  .hero__quotes { display: none; }
+  .hero__inner { gap: 18px; }
 }
 .chip { font: 500 13px var(--f-mono); color: var(--fg); padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.03); transition: background-color .3s, color .3s, border-color .3s; }
 .chip:hover { border-color: var(--cyan); }
@@ -307,6 +314,38 @@ body.past-showcase .hud, body.past-showcase .dots, body.in-hero .hud { opacity: 
 .foot__row a { text-decoration: none; }
 .foot__credit { margin-top: 14px; font-size: 11px; color: var(--muted); opacity: .8; }
 .foot__credit a { color: var(--fg); }
+
+/* ---------- reviews (real Google reviews, quoted word for word) ---------- */
+.rv { margin: 0; display: grid; gap: 4px; padding: 0 0 0 14px; border-left: 2px solid transparent; border-image: var(--film) 1; }
+.rv__stars { color: #ffb21e; font-size: 12px; letter-spacing: 2px; }
+.rv blockquote { margin: 0; font-size: 15px; line-height: 1.4; font-style: italic; color: var(--fg); }
+.rv figcaption { font-size: 11px; color: var(--muted); letter-spacing: .08em; }
+.rv figcaption a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.rv--card { margin-top: 12px; }
+.rv--card blockquote { font-size: 13.5px; }
+.rv--block { max-width: 60ch; margin-top: 4px; }
+/* a review on its own between two scenes, right before the shot it talks about (shorter than a screen, so the scenes
+   still dissolve into each other behind it) */
+.interlude { position: relative; z-index: 2; height: 90vh; display: grid; place-items: center; padding: 0 var(--gutter); pointer-events: none; }
+.interlude .rv { pointer-events: auto; }
+.rv--big { max-width: 760px; gap: 10px; padding: 26px 30px; border: 1px solid var(--line); border-left: 1px solid var(--line); border-image: none; border-radius: 22px;
+  background: linear-gradient(160deg, rgba(23,23,28,.72), rgba(10,10,12,.62)); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 30px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06); }
+.rv--big .rv__stars { font-size: 15px; }
+.rv--big blockquote { font: italic 600 clamp(22px, 3vw, 38px)/1.25 var(--f-display); letter-spacing: -.01em; }
+.rv--big figcaption { font-size: 12px; }
+.hero__reviews { display: grid; gap: 12px; max-width: 46ch; }
+.hero__rating { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; justify-self: start; }
+.hero__rating b { color: var(--fg); font-size: 14px; }
+.hero__quotes { display: grid; }
+.hero__quotes .rv { grid-area: 1 / 1; opacity: 0; transform: translateY(6px); transition: opacity .7s, transform .7s var(--ease); pointer-events: none; }
+.hero__quotes .rv.on { opacity: 1; transform: none; pointer-events: auto; }
+.hero__quotes .rv__stars { display: none; }
+@media (max-width: 760px) {
+  .panel > .rv blockquote { font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .panel > .rv .rv__stars { display: none; }
+  .hero__quotes blockquote { font-size: 14px; }
+}
 
 /* ---------- responsive ---------- */
 @media (max-width: 1000px) {

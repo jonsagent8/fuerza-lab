@@ -117,7 +117,7 @@ media.forEach(m => io.observe(m.el));
 /* ---------------- loader ---------------- */
 const heroWords = $$('.hero__title [data-split]').flatMap(el => [...FX.split(el)]);
 gsap.set(heroWords, { yPercent: 110 });
-gsap.set(['.hero__sub', '.hero__cta', '.hero .eyebrow', '.hero__foot'], { autoAlpha: 0, y: 24 });
+gsap.set(['.hero__sub', '.hero__cta', '.hero__reviews', '.hero .eyebrow', '.hero__foot'], { autoAlpha: 0, y: 24 });
 const arrivalIntro = { v: reduce ? 1 : 0 };   // the bay lights come on by themselves after the loader; scroll scrubs the rest
 (function loader() {
   const bar = $('#loaderBar'), pct = $('#loaderPct'), txt = $('#loaderTxt'), words = ['PRE-RINSE', 'SNOW FOAM', 'HAND WASH', 'SPOT-FREE RINSE', 'READY'];
@@ -134,7 +134,7 @@ const arrivalIntro = { v: reduce ? 1 : 0 };   // the bay lights come on by thems
       .set('#loader', { display: 'none' })
       .to(arrivalIntro, { v: 1, duration: reduce ? 0 : 2.6, ease: 'power2.inOut' }, '-=.6')
       .to(heroWords, { yPercent: 0, duration: 1.2, stagger: .08, ease: 'expo.out' }, '-=2.2')
-      .to(['.hero .eyebrow', '.hero__sub', '.hero__cta', '.hero__foot'], { autoAlpha: 1, y: 0, duration: 1, stagger: .1, ease: 'power3.out' }, '-=.9')
+      .to(['.hero .eyebrow', '.hero__sub', '.hero__cta', '.hero__reviews', '.hero__foot'], { autoAlpha: 1, y: 0, duration: 1, stagger: .1, ease: 'power3.out' }, '-=.9')
       .add(() => FX.scramble($('.hero .eyebrow')), '-=1');
     measure();
   });
@@ -176,6 +176,10 @@ $$('.spin-arrows button').forEach(b => b.addEventListener('click', () => {
   showSpin(b.closest('section').id);
 }));
 document.documentElement.classList.toggle('reduce-motion', reduce);
+
+/* ---------------- hero reviews: the quotes take turns (reduced motion: the first one stays) ---------------- */
+{ const qs = $$('.hero__quotes .rv'); let k = 0;
+  if (!reduce && qs.length > 1) setInterval(() => { if (document.hidden) return; qs[k].classList.remove('on'); k = (k + 1) % qs.length; qs[k].classList.add('on'); }, 5500); }
 
 /* ---------------- tint: a shade darkens the spin's glass (painter); without WebGL it plays the side-view tint clip ---------------- */
 const tintFrac = v => (window.TINT_CURVE ? window.TINT_CURVE(v) : lerp(.15, 1, (70 - v) / 65));
