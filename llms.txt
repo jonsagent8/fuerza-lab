@@ -1,0 +1,27 @@
+# Fuerza Autocare LLC
+
+> Owner-operated auto detailing, ceramic coating, window tint, vinyl wrap and paint protection film (PPF) shop at 131 Pearl St, Port Chester, NY 10573. One owner works on every car. Rated 5.0 from 34 Google reviews.
+
+## Contact
+- Phone / text: (914) 996-5146
+- Address: 131 Pearl St, Port Chester, NY 10573
+- Google Maps: https://maps.google.com/?cid=3785545054160607995
+- Website: https://fuerzaautocare.com/
+- Hours: by appointment, [HOURS]
+
+## Service area
+Port Chester, NY and [TOWNS]. Shop and mobile service.
+
+## Services
+- Auto detailing: hand wash, decontamination, machine polish, interior deep clean. About 2–4 hours. From [PRICE_DETAIL].
+- Interior detailing: hot-water extraction, steam, leather care, glass.
+- Ceramic coating: gloss, water beading, easier upkeep; added to any detail. [PRICE_CERAMIC]. Lasts [COATING_YEARS].
+- Window tint: computer-cut ceramic film, 5% to 70% VLT; sides, rear and windshield. About 2–3 hours. From [PRICE_TINT].
+- Vinyl wrap: full or partial color change, chrome delete, accents; fully reversible. About 3–5 days. From [PRICE_WRAP].
+- Paint protection film (PPF): self-healing urethane, front end, track pack or full body. About 1–3 days. From [PRICE_PPF].
+- Paint correction: machine polishing to remove swirl marks and light scratches.
+
+## Pages
+- Home (all services, pricing, reviews, FAQ, booking): https://fuerzaautocare.com/
+- FAQ: https://fuerzaautocare.com/#faq
+- Reviews: https://fuerzaautocare.com/#reviews
