@@ -216,6 +216,7 @@ html.has-cursor .cursor { display: block; }
 .dots a span { position: absolute; right: 22px; top: 50%; transform: translate(6px, -50%); font: 500 11px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
 .dots a:hover span { opacity: .8; transform: translate(0, -50%); }
 body.past-showcase .hud, body.past-showcase .dots, body.in-hero .hud { opacity: 0; pointer-events: none; }
+body.hud-clash .hud { opacity: 0; }
 
 /* ---------- solid sections ---------- */
 .solid { position: relative; z-index: 2; background: var(--ink); }
@@ -342,12 +343,15 @@ body.past-showcase .hud, body.past-showcase .dots, body.in-hero .hud { opacity: 
 .hero__quotes .rv { grid-area: 1 / 1; opacity: 0; transform: translateY(6px); transition: opacity .7s, transform .7s var(--ease); pointer-events: none; }
 .hero__quotes .rv.on { opacity: 1; transform: none; pointer-events: auto; }
 .hero__quotes .rv__stars { display: none; }
+/* phones too short for text + reviews + car: main.js drops the quote, then the whole rating line, rather than let them sit on the car */
+.hero.rv-short .hero__quotes, .hero.rv-none .hero__reviews { display: none; }
 @media (max-width: 760px) {
   .panel > .rv blockquote { font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .panel > .rv .rv__stars { display: none; }
   .hero__quotes blockquote { font-size: 14px; }
-  /* phones: the reviews sit under the car at the bottom of the screen (main.js lifts the car to sit just above them) */
-  .hero__reviews { position: absolute; left: var(--gutter); right: var(--gutter); bottom: 18px; max-width: none; }
+  /* phones: the reviews sit right under the buttons, above the car (main.js parks the car below them and fades them
+     out as soon as the car starts to roll in, so they never sit on it) */
+  .hero__reviews { max-width: none; }
   .hero__foot { display: none; }
 }
 

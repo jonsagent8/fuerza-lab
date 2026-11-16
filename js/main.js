@@ -1,5 +1,5 @@
 import * as FX from './fx.js?v=turn1';
-import { seq, Stage, SMALL, setFocus } from './frames.js?v=turn17';
+import { seq, Stage, SMALL, setFocus } from './frames.js?v=reg1';
 import { heroFx } from './hero-fx.js';
 import { Painter } from './paint.js?v=ws1';
 
@@ -241,16 +241,44 @@ function showSpin() {}
 /* ---------------- scroll choreography ---------------- */
 const scenes = $$('[data-scene]'), nav = $('#nav');
 let offs = [];
-// phones: park the hero car (frame 97: car spans 18%–80% of the picture height) just above the reviews
+// phones: park the hero car (frame 97: car spans 18%–80% of the picture height) just below the reviews
 function placeHeroCar() {
   const hr = $('.hero__reviews'), A = M.arrival;
-  if (!hr || !A || innerHeight <= innerWidth || getComputedStyle(hr).position !== 'absolute') { if (A) A.y = +(A.el.dataset.y || .4); return; }
-  const h = innerWidth * 1.18 * 1080 / 1920;
-  const top = innerHeight - parseFloat(getComputedStyle(hr).bottom) - hr.offsetHeight;
-  A.y = Math.min(1, Math.max(0, (top - 10 - .8 * h) / (innerHeight - h)));
+  if (!hr || !A || innerHeight <= innerWidth || innerWidth > 760) { if (A) A.y = +(A.el.dataset.y || .4); return; }
+  const h = innerWidth * 1.18 * 1080 / 1920, hero = $('.hero'), inner = $('.hero__inner');
+  // car top = picture top + 18% of the picture; the picture can sink at most to the bottom of the screen
+  const lowestCarTop = innerHeight - h + .18 * h;
+  hero.classList.remove('rv-short', 'rv-none');
+  for (const step of ['', 'rv-short', 'rv-none']) {
+    if (step) hero.classList.add(step);
+    const el = step === 'rv-none' ? $('.hero__cta') : hr;
+    var below = inner.offsetTop + el.offsetTop + el.offsetHeight;   // bottom edge on screen of the last thing above the car (the hero is pinned at the top)
+    if (below + 12 <= lowestCarTop) break;
+  }
+  A.y = Math.min(1, Math.max(0, (below + 12 - .18 * h) / (innerHeight - h)));
+}
+// desktop: the spinning car sits in the open space beside the tint / wrap panel, and the HUD steps aside wherever it
+// would run into a scene's panel
+let hudClash = [];
+const heroRv = $$('.hero__reviews > *');   // its children, so the GSAP intro keeps the parent's own fade-in
+function placeSpinCar() {
+  const W = innerWidth, wide = W > innerHeight && W > 900;
+  media.forEach(m => {
+    m.region = null;
+    if (!wide || (m.role !== 'tint' && m.role !== 'wrap')) return;
+    const pr = $('.panel', m.el).getBoundingClientRect(), left = $('.panel', m.el).classList.contains('panel--left');
+    m.region = left ? { x0: (pr.right + 40) / W, x1: (W - 80) / W } : { x0: 80 / W, x1: (pr.left - 40) / W };
+  });
+  const hr = $('#hud').getBoundingClientRect();
+  hudClash = scenes.map(sc => {
+    const p = $('.panel', sc); if (!p || !hr.width) return false;
+    const r = p.getBoundingClientRect(), st = p.closest('.scene__sticky'), top = st ? r.top - st.getBoundingClientRect().top : r.top;
+    return r.left < hr.right + 12 && r.right > hr.left && top + r.height > hr.top - 12;
+  });
 }
 function measure() {
   placeHeroCar();
+  placeSpinCar();
   const top = el => el.getBoundingClientRect().top + scrollY;
   offs = scenes.map(el => ({ top: top(el), h: el.offsetHeight }));
   media.forEach(m => { m.top = top(m.el); m.h = m.el.offsetHeight; });
@@ -308,7 +336,7 @@ function tick() {
   const A = media[ci], visible = A && y < A.top + A.h;
   if (visible) {
     const P0 = media[ci - 1], t = A.prevAdj && y < A.top ? ss(A.top - BLEND * vh, A.top, y) : 1;
-    const layer = (m, alpha, scale) => ({ s: m.cur, f: m.f, alpha, scale, fit: m.fit, y: m.y, focusX: m.focusX });
+    const layer = (m, alpha, scale) => ({ s: m.cur, f: m.f, alpha, scale, fit: m.fit, y: m.y, focusX: m.focusX, region: m.region });
     const breathe = reduce ? 1 : 1.025 + .012 * Math.sin(now * .35);
     par.x += ((reduce ? 0 : S.mx * -.008) - par.x) * ease * .5; par.y += ((reduce ? 0 : S.my * -.006) - par.y) * ease * .5;
     let layers;
@@ -342,6 +370,9 @@ function tick() {
   const showcaseEnd = offs[offs.length - 1].top + offs[offs.length - 1].h;
   document.body.classList.toggle('past-showcase', y > showcaseEnd - vh * .6);
   document.body.classList.toggle('in-hero', cur === 0 && P[0] < .6);
+  document.body.classList.toggle('hud-clash', !!hudClash[cur]);
+  // phones: the hero reviews fade away as the car starts rolling toward the camera
+  if (mobile) { const o = cur === 0 ? String(1 - ss(.02, .1, P[0])) : '0'; heroRv.forEach(e => { if (e.style.opacity !== o) e.style.opacity = o; }); }
   const read = [
     'GLOSS 98 GU · PAINT 0 DEFECTS',
     pw < .13 ? 'ROAD FILM DETECTED' : pw < .45 ? `FOAM ${Math.round(ss(.13, .4, pw) * 100)}% · pH 7.0` : pw < .8 ? `RINSE ${Math.round(ss(.45, .8, pw) * 100)}% · DEIONIZED` : 'SPOT-FREE · DRY',

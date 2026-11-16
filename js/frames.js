@@ -189,8 +189,15 @@ export class Stage {
       const i0 = Math.floor(L.f), f0 = L.s.frame(i0), f1 = L.s.frame(i0 + 1), both = !L.s.paint && f0 && f1;
       const im = L.s.paint ? L.s.paint(L.f) : both ? f0 : L.s.nearest(L.f); if (!im || L.alpha <= 0) continue;
       const iw = im.width, ih = im.height, byWidth = L.fit === 'width' && ch > cw;
-      const k = (byWidth ? cw / iw * 1.18 : Math.max(cw / iw, ch / ih)) * (L.scale || 1), w = iw * k, h = ih * k;
-      const x = byWidth ? (cw - w) / 2 : (cw - w) * (L.focusX ?? .5), y = byWidth ? (ch - h) * (L.y ?? .4) : (ch - h) / 2;
+      // region (desktop tint/wrap): the spin is shrunk only as far as needed for the car (~76% of the picture width,
+      // centred at 49%) to fit between region.x0 and region.x1 (fractions of the screen), and centred there, so the
+      // side panel never covers it
+      const R = !byWidth && L.region;
+      let k = byWidth ? cw / iw * 1.18 : Math.max(cw / iw, ch / ih);
+      if (R) k = Math.min(k, (R.x1 - R.x0) * cw / (iw * .76));
+      k *= L.scale || 1;
+      const w = iw * k, h = ih * k;
+      const x = R ? (R.x0 + R.x1) / 2 * cw - .49 * w : byWidth ? (cw - w) / 2 : (cw - w) * (L.focusX ?? .5), y = byWidth ? (ch - h) * (L.y ?? .4) : (ch - h) / 2;
       g.globalAlpha = Math.min(1, L.alpha);
       if (byWidth) g.fillRect(0, 0, cw, ch);   // letterbox in bay-black, so a dissolve fades the whole screen, not a box
       g.drawImage(im, x + dx * cw, y + dy * ch, w, h);
@@ -202,6 +209,15 @@ export class Stage {
         for (const [y0, y1] of [[Y, Y + e], [Y + h, Y + h - e]]) {
           const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, '#060607'); gr.addColorStop(1, 'rgba(6,6,7,0)');
           g.fillStyle = gr; g.fillRect(X, Math.min(y0, y1), w, e);
+        }
+        g.fillStyle = '#060607';
+      }
+      if (R) {                                // a picture smaller than the screen: feather each edge that shows into bay-black
+        const X = x + dx * cw, Y = y + dy * ch, ex = w * .1, ey = h * .12;
+        for (const [a, b, horiz] of [[X, X + ex, 1], [X + w, X + w - ex, 1], [Y, Y + ey, 0], [Y + h, Y + h - ey, 0]]) {
+          const gr = horiz ? g.createLinearGradient(a, 0, b, 0) : g.createLinearGradient(0, a, 0, b);
+          gr.addColorStop(0, '#060607'); gr.addColorStop(1, 'rgba(6,6,7,0)'); g.fillStyle = gr;
+          if (horiz) g.fillRect(Math.min(a, b), Y, ex, h); else g.fillRect(X, Math.min(a, b), w, ey);
         }
         g.fillStyle = '#060607';
       }
