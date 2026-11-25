@@ -1,0 +1,16 @@
+# Never upload these to Cloudflare (Workers static assets, gitignore syntax)
+.assetsignore
+_headers
+.git
+.gitignore
+.DS_Store
+node_modules
+_hf/
+3d/
+st-*.jpg
+shot-*.png
+sheet.jpg
+shots.mjs
+README.md
+package.json
+package-lock.json
