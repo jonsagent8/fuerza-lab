@@ -1,8 +1,8 @@
 # Fuerza Auto Care
 
-The Fuerza Auto Care site in Fuerza red and chrome. A Portimao Blue BMW M240i (G42) in a dark detailing bay arrives, gets washed, steamed, tinted, wrapped and protected as you scroll. Every scene is a Higgsfield-generated clip exported to WebP frames and scrubbed by scroll on a pinned canvas. After that come paint correction, services, pricing, about, the finale and Cal.com booking with one calendar per service.
+The Fuerza Auto Care site in Fuerza red and chrome. A black sports sedan in a dark detailing bay arrives, gets washed, steamed, tinted, wrapped and protected as you scroll. Every scene is a Higgsfield-generated clip exported to WebP frames and scrubbed by scroll on a pinned canvas. After that come paint correction, services, pricing, about, the finale and Cal.com booking with one calendar per service.
 
-Static site, no build step. Open it through any web server (or GitHub Pages). GSAP, ScrollTrigger and Lenis load from CDNs.
+Static site, no build step. Open it through any web server (or GitHub Pages). GSAP 3.12.5, ScrollTrigger and Lenis 1.1.13 are self-hosted in `js/vendor/`. Security headers (CSP etc.) are in `_headers`; `.assetsignore` keeps tooling and screenshots out of the deploy.
 
 ## Structure
 - `index.html`, `css/style.css` (shared engine), `css/fuerza.css` (Fuerza additions)

@@ -1,6 +1,8 @@
 import puppeteer from 'puppeteer-core';
+const { PREVIEW_USER, PREVIEW_PASS } = process.env;
+if (!PREVIEW_USER || !PREVIEW_PASS) { console.error('Set PREVIEW_USER and PREVIEW_PASS (the preview login) in the environment.'); process.exit(1); }
 const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-angle=metal', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
-const p = await b.newPage(); await p.authenticate({ username: 'george', password: 'fuerza' });
+const p = await b.newPage(); await p.authenticate({ username: PREVIEW_USER, password: PREVIEW_PASS });
 const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => (m.type() === 'error' || m.type() === 'warning') && errs.push(m.text()));
 await p.setViewport({ width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
 await p.goto('https://fuerzaautocare.com/', { waitUntil: 'load' }); await new Promise(r => setTimeout(r, 12000));
